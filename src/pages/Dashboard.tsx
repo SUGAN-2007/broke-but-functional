@@ -1,11 +1,16 @@
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { staggerContainer, fadeUp } from '@/lib/motion'
 import {
   TrendingDown,
   AlertTriangle,
   CheckCircle2,
-  Info,
+  Plus,
+  ArrowUpRight,
+  Zap,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -21,155 +26,150 @@ import {
 } from 'recharts'
 import { Card, CardLabel, CardValue } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { heroData, transactions, categories, forecastData, insights, healthReasons } from '@/data/mock'
-import { formatCurrency } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import {
+  heroData,
+  transactions,
+  categories,
+  forecastData,
+  insights,
+  healthReasons,
+} from '@/data/mock'
+import { formatCurrency, getDateForDay } from '@/lib/utils'
 import AddExpenseDialog from '@/components/dashboard/AddExpenseDialog'
+import { AddIncomeDialog } from '@/components/dialogs/FinanceDialogs'
 
-/* ── Animated counter ───────────────────────────── */
-function useCountUp(target: number, duration = 1200) {
-  const [count, setCount] = useState(0)
-  const raf = useRef<number>(0)
-  const start = useRef<number | null>(null)
+/* ── Count-up animation hook ────────────────────────── */
+function useCountUp(target: number, duration = 800) {
+  const [val, setVal] = useState(0)
+  const startTime = useRef<number | null>(null)
 
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduced) { setCount(target); return }
-
-    const animate = (ts: number) => {
-      if (!start.current) start.current = ts
-      const elapsed = ts - start.current
-      const progress = Math.min(elapsed / duration, 1)
-      const ease = 1 - Math.pow(1 - progress, 3) // cubic ease-out
-      setCount(Math.round(ease * target))
-      if (progress < 1) raf.current = requestAnimationFrame(animate)
+    let animId: number
+    const step = (timestamp: number) => {
+      if (!startTime.current) startTime.current = timestamp
+      const progress = Math.min((timestamp - startTime.current) / duration, 1)
+      const ease = 1 - Math.pow(1 - progress, 3)
+      setVal(Math.round(ease * target))
+      if (progress < 1) {
+        animId = requestAnimationFrame(step)
+      }
     }
-    raf.current = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(raf.current)
+    animId = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(animId)
   }, [target, duration])
 
-  return count
+  return val
 }
 
-/* ── Day strip ───────────────────────────────────── */
+/* ── Financial Health Ring ───────────────────────────── */
+function HealthRing({ score }: { score: number }) {
+  const radius = 38
+  const circ = 2 * Math.PI * radius
+  const strokeDashoffset = circ - (score / 100) * circ
+  const strokeColor =
+    score >= 75 ? 'var(--safe)' : score >= 55 ? 'var(--warning)' : 'var(--danger)'
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg className="w-24 h-24 -rotate-90" viewBox="0 0 96 96" aria-hidden="true">
+        <circle
+          cx="48"
+          cy="48"
+          r={radius}
+          className="stroke-border"
+          strokeWidth="8"
+          fill="none"
+        />
+        <circle
+          cx="48"
+          cy="48"
+          r={radius}
+          stroke={strokeColor}
+          strokeWidth="8"
+          strokeDasharray={circ}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          fill="none"
+          className="transition-all duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <span className="font-mono font-[700] text-xl text-ink tracking-tight">{score}</span>
+        <span className="text-[10px] text-ink-muted uppercase font-bold tracking-wider">/ 100</span>
+      </div>
+    </div>
+  )
+}
+
+/* ── Day strip ───────────────────────────────────────── */
 function DayStrip({ current, total }: { current: number; total: number }) {
   return (
     <div
-      className="flex gap-[2px] flex-wrap"
-      role="img"
-      aria-label={`Day ${current} of ${total} — ${total - current} days remaining`}
+      className="flex items-center gap-1 w-full"
+      role="progressbar"
+      aria-valuenow={current}
+      aria-valuemin={1}
+      aria-valuemax={total}
+      aria-label={`Day ${current} of ${total}`}
     >
-      {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className={[
-            'h-[6px] rounded-full transition-all',
-            i < current
-              ? 'bg-brand'
-              : i === current
-              ? 'bg-accent w-[14px]'
-              : 'bg-border',
-          ].join(' ')}
-          style={{ width: i === current ? 14 : 8 }}
-        />
-      ))}
-    </div>
-  )
-}
+      {Array.from({ length: total }, (_, i) => {
+        const d = i + 1
+        const isPast = d < current
+        const isCurrent = d === current
+        const isDanger = d >= heroData.dangerDay
 
-/* ── Health Score Ring ───────────────────────────── */
-function HealthRing({ score }: { score: number }) {
-  const radius = 52
-  const circ = 2 * Math.PI * radius
-  const dash = (score / 100) * circ
-  const color = score >= 70 ? 'var(--safe)' : score >= 45 ? 'var(--warning)' : 'var(--danger)'
-
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative w-[128px] h-[128px]">
-        <svg width="128" height="128" viewBox="0 0 128 128" aria-hidden="true">
-          <circle cx="64" cy="64" r={radius} fill="none" stroke="var(--border)" strokeWidth="8" />
-          <circle
-            cx="64"
-            cy="64"
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth="8"
-            strokeDasharray={`${dash} ${circ}`}
-            strokeLinecap="round"
-            transform="rotate(-90 64 64)"
-            style={{ transition: 'stroke-dasharray 1s ease' }}
+        return (
+          <div
+            key={d}
+            title={`${getDateForDay(d)} (Day ${d})${isCurrent ? ' (Today)' : ''}${isDanger ? ' (Danger zone)' : ''}`}
+            className={[
+              'flex-1 h-3 rounded-[3px] transition-all',
+              isCurrent
+                ? 'bg-accent ring-2 ring-accent/30 scale-y-125'
+                : isPast
+                ? 'bg-brand'
+                : isDanger
+                ? 'bg-danger/25 border border-danger/40'
+                : 'bg-border',
+            ].join(' ')}
           />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-display font-[800] text-[1.75rem] tracking-[-0.02em] text-ink">{score}</span>
-          <span className="font-body text-[0.75rem] uppercase tracking-wider text-ink-muted">score</span>
-        </div>
-      </div>
+        )
+      })}
     </div>
   )
 }
 
-/* ── Custom tooltip ──────────────────────────────── */
-function ForecastTooltip({ active, payload, label }: any) {
+/* ── Custom chart tooltip ────────────────────────────── */
+function ForecastTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean
+  payload?: Array<{ value?: number; payload: { day?: number; label: string; dangerZone?: boolean } }>
+}) {
   if (!active || !payload?.length) return null
-  return (
-    <div className="bg-surface-raised border border-border rounded-[12px] px-3 py-2 shadow-[var(--shadow-raised)]">
-      <p className="font-body text-[0.8125rem] text-ink-muted mb-1">{label}</p>
-      <p className="font-mono text-[1rem] font-[600] text-ink">
-        {formatCurrency(payload[0].value)}
-      </p>
-    </div>
-  )
-}
+  const data = payload[0]
+  const val = Number(data.value) || 0
+  const isDanger = data.payload.dangerZone
+  const dayNum = data.payload.day
 
-/* ── Transaction row ─────────────────────────────── */
-function TxRow({ tx }: { tx: typeof transactions[0] }) {
-  const isCredit = tx.type === 'credit'
   return (
-    <div className="flex items-center gap-3 py-3">
-      <div
-        className={[
-          'w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0',
-          isCredit ? 'bg-safe-bg' : 'bg-surface-raised',
-        ].join(' ')}
-        aria-hidden="true"
-      >
-        <span className={['font-mono font-[700] text-[0.875rem]', isCredit ? 'text-safe' : 'text-ink-muted'].join(' ')}>
-          {tx.category.slice(0, 2).toUpperCase()}
+    <div className="bg-surface-raised border border-border rounded-[12px] p-2.5 shadow-md font-body text-xs">
+      <p className="font-bold text-ink">
+        {dayNum ? `${getDateForDay(dayNum)} (Day ${dayNum})` : data.payload.label}
+      </p>
+      <p className="font-mono text-sm font-semibold mt-0.5">
+        <span className="text-ink-muted">Balance: </span>
+        <span className={val <= 0 ? 'text-danger font-bold' : val < 2000 ? 'text-warning' : 'text-brand'}>
+          {formatCurrency(val)}
         </span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-body font-[500] text-[0.9375rem] text-ink truncate">{tx.merchant}</p>
-        <p className="font-body text-[0.8125rem] text-ink-muted">{tx.description} · {tx.date}</p>
-      </div>
-      <p className={[
-        'font-mono font-[600] text-[0.9375rem] shrink-0',
-        isCredit ? 'text-safe' : 'text-ink',
-      ].join(' ')}>
-        {isCredit ? '+' : '−'}{formatCurrency(tx.amount)}
       </p>
-    </div>
-  )
-}
-
-/* ── Insight card ────────────────────────────────── */
-function InsightChip({ insight }: { insight: typeof insights[0] }) {
-  const cfg = {
-    good:    { icon: CheckCircle2, color: 'text-safe',    bg: 'bg-safe-bg' },
-    warning: { icon: AlertTriangle,color: 'text-warning', bg: 'bg-warning-bg' },
-    tip:     { icon: Info,         color: 'text-brand',   bg: 'bg-surface-raised' },
-  }[insight.type]
-
-  return (
-    <div className="rounded-[16px] border border-border bg-surface p-4 flex gap-3">
-      <div className={['w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0', cfg.bg].join(' ')}>
-        <cfg.icon size={16} className={cfg.color} aria-hidden="true" />
-      </div>
-      <div>
-        <p className="font-body font-[600] text-[0.9375rem] text-ink mb-1">{insight.headline}</p>
-        <p className="font-body text-[0.8125rem] text-ink-muted leading-relaxed">{insight.body}</p>
-      </div>
+      {isDanger && (
+        <p className="text-[10px] text-danger font-semibold mt-1 flex items-center gap-1">
+          <AlertTriangle size={11} /> Red Zone (₹0 reached)
+        </p>
+      )}
     </div>
   )
 }
@@ -178,204 +178,303 @@ function InsightChip({ insight }: { insight: typeof insights[0] }) {
 export default function Dashboard() {
   const animatedBalance = useCountUp(heroData.balance)
   const [addExpenseOpen, setAddExpenseOpen] = useState(false)
+  const [addIncomeOpen, setAddIncomeOpen] = useState(false)
 
   return (
     <motion.div
       variants={staggerContainer}
       initial="hidden"
       animate="show"
-      className="flex flex-col gap-[var(--section-gap)]"
+      className="flex flex-col gap-5 sm:gap-6"
     >
-      {/* ── Page title (screen reader) ── */}
+      {/* ── Screen reader title ── */}
       <h1 className="sr-only">Dashboard — Broke But Functional</h1>
 
-      {/* ── Bento Grid ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-[var(--grid-gap)]">
-
-        {/* HERO: Balance + Day strip */}
-        <motion.div variants={fadeUp} className="lg:col-span-7 md:col-span-2">
-          <Card className="paper-texture h-full relative overflow-hidden">
-            {/* Risk badge */}
-            <div className="absolute top-[var(--card-px)] right-[var(--card-px)]">
-              <Badge variant={heroData.riskLevel === 'medium' ? 'warning' : heroData.riskLevel === 'high' ? 'danger' : 'safe'}>
-                {heroData.riskLevel === 'medium' ? '⚠ Medium risk' : heroData.riskLevel === 'high' ? '⛔ High risk' : '✓ Low risk'}
-              </Badge>
+      {/* ── ACTIVE EVENT BANNER (links to /events) ── */}
+      <motion.div variants={fadeUp}>
+        <div className="relative overflow-hidden rounded-[16px] bg-danger-bg border border-danger/30 p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-[10px] bg-danger text-white flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+              <Zap size={18} aria-hidden="true" />
             </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-display font-bold text-sm text-ink">
+                  Active Event: Phone screen cracked
+                </span>
+                <Badge variant="danger" className="text-[10px] py-0 px-1.5 uppercase font-bold">
+                  High Risk
+                </Badge>
+              </div>
+              <p className="font-body text-xs text-ink-muted mt-0.5">
+                Estimated repair: <span className="font-mono font-semibold text-danger">₹1,500</span>. Will pull your danger day from {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay}) to {getDateForDay(23)} (Day 23).
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/events"
+            className="self-stretch sm:self-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[10px] bg-danger hover:bg-danger/90 text-white font-display font-semibold text-xs tracking-wide transition-colors shadow-xs"
+          >
+            <span>Resolve Event</span>
+            <ArrowUpRight size={14} />
+          </Link>
+        </div>
+      </motion.div>
 
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
-              {/* Left: big number */}
-              <div className="flex-1">
-                <CardLabel>Remaining balance</CardLabel>
-                <CardValue size="hero" className="text-ink my-2">
-                  ₹{animatedBalance.toLocaleString('en-IN')}
-                </CardValue>
-                <div className="flex items-center gap-3 mt-1">
-                  <div className="flex items-center gap-1.5">
-                    <TrendingDown size={14} className="text-warning" aria-hidden="true" />
-                    <span className="font-body text-[0.8125rem] text-ink-muted">
-                      Yesterday: <span className="text-warning font-[600]">{formatCurrency(heroData.yesterdaySpend)}</span>
-                    </span>
-                  </div>
+      {/* ── BENTO GRID (STRICT 12-COLUMN ALIGNMENT) ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5">
+        
+        {/* ROW 1: HERO CARD (lg:col-span-6) */}
+        <motion.div variants={fadeUp} className="md:col-span-2 lg:col-span-6">
+          <Card className="h-full flex flex-col justify-between p-5 sm:p-6 relative overflow-hidden">
+            <div>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs uppercase tracking-wider text-ink font-bold">
+                    {getDateForDay(heroData.day)} (Day {heroData.day} of {heroData.totalDays})
+                  </span>
+                  <span className="text-border-strong">•</span>
+                  <span className="text-xs text-ink-muted font-body">Oct 3 – Nov 1</span>
                 </div>
+                <Badge variant="danger" className="font-bold text-xs">
+                  <AlertTriangle size={11} className="mr-1" />
+                  Red by {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay})
+                </Badge>
               </div>
 
-              {/* Right: allowance + strip */}
-              <div className="flex flex-col gap-4 lg:min-w-[200px]">
-                <div>
-                  <CardLabel>Daily allowance</CardLabel>
-                  <p className="font-mono font-[700] text-[1.5rem] text-ink tracking-[-0.02em] mt-1">
-                    {formatCurrency(heroData.dailyAllowance)}
-                    <span className="text-[0.875rem] font-[400] text-ink-muted font-body ml-1">/day</span>
-                  </p>
+              <div className="mt-2">
+                <CardLabel>Remaining Liquid Balance</CardLabel>
+                <div className="flex items-baseline gap-2 mt-1 mb-2">
+                  <CardValue size="hero" className="text-ink tracking-tight font-mono">
+                    ₹{animatedBalance.toLocaleString('en-IN')}
+                  </CardValue>
                 </div>
-
-                <div>
-                  <CardLabel className="mb-2">Day {heroData.day} of {heroData.totalDays}</CardLabel>
-                  <DayStrip current={heroData.day} total={heroData.totalDays} />
-                  <p className="font-body text-[0.8125rem] text-ink-muted mt-2">
-                    {heroData.totalDays - heroData.day} days remaining
-                  </p>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
+                  <span>Start: ₹{heroData.startingBalance.toLocaleString('en-IN')}</span>
+                  <span>+ ₹{heroData.incomeTopUp.toLocaleString('en-IN')} top-up</span>
+                  <span>- ₹5,760 spent</span>
                 </div>
               </div>
             </div>
-          </Card>
-        </motion.div>
 
-        {/* STAT: Committed bills */}
-        <motion.div variants={fadeUp} className="lg:col-span-2">
-          <Card hover className="h-full">
-            <CardLabel>Committed bills</CardLabel>
-            <CardValue size="lg" className="mt-2 mb-1">₹1,357</CardValue>
-            <p className="font-body text-[0.8125rem] text-ink-muted">due this month</p>
-            <hr className="ledger-divider mt-3" />
-            <p className="font-body text-[0.8125rem] text-warning">2 bills due soon</p>
-          </Card>
-        </motion.div>
-
-        {/* STAT: Projected month-end */}
-        <motion.div variants={fadeUp} className="lg:col-span-3">
-          <Card hover className="h-full">
-            <CardLabel>Projected month-end</CardLabel>
-            <CardValue size="lg" className="mt-2 mb-1 text-warning">
-              {formatCurrency(heroData.projectedMonthEnd)}
-            </CardValue>
-            <p className="font-body text-[0.8125rem] text-ink-muted">surplus if spend holds</p>
-            <hr className="ledger-divider mt-3" />
-            <div className="flex items-center gap-1.5">
-              <TrendingDown size={14} className="text-warning" aria-hidden="true" />
-              <p className="font-body text-[0.8125rem] text-warning">Trending down</p>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* HEALTH SCORE */}
-        <motion.div variants={fadeUp} className="lg:col-span-3 md:col-span-2">
-          <Card hover className="h-full">
-            <h2 className="font-display font-[600] text-[1rem] text-ink mb-4">Financial Health</h2>
-            <div className="flex flex-col sm:flex-row items-center gap-5">
-              <HealthRing score={heroData.healthScore} />
-              <div className="flex-1 flex flex-col gap-2 w-full">
-                {healthReasons.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between gap-2">
-                    <span className="font-body text-[0.8125rem] text-ink-muted truncate">{r.label}</span>
-                    <span className={[
-                      'font-mono text-[0.8125rem] font-[600] shrink-0',
-                      r.status === 'good' ? 'text-safe' : 'text-danger',
-                    ].join(' ')}>
-                      {r.points > 0 ? `+${r.points}` : r.points}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* FORECAST CHART */}
-        <motion.div variants={fadeUp} className="lg:col-span-8 md:col-span-2">
-          <Card>
-            <div className="flex items-center justify-between mb-4">
+            <div className="mt-6 pt-4 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div>
-                <h2 className="font-display font-[600] text-[1rem] text-ink">Balance Forecast</h2>
-                <p className="font-body text-[0.8125rem] text-ink-muted">Danger zone kicks in around Day 23</p>
+                <CardLabel>Calculated Daily Allowance</CardLabel>
+                <div className="flex items-baseline gap-1.5 mt-0.5">
+                  <span className="font-mono font-[700] text-2xl text-ink tracking-tight">
+                    {formatCurrency(heroData.dailyAllowance)}
+                  </span>
+                  <span className="text-xs font-medium text-ink-muted font-body">/day</span>
+                  <span className="text-[11px] text-ink-muted ml-2">
+                    (₹{heroData.balance} - ₹{heroData.unpaidBills}) ÷ {heroData.daysLeft}d
+                  </span>
+                </div>
               </div>
-              <Badge variant="warning">
-                <AlertTriangle size={10} className="mr-1" aria-hidden="true" />
-                Red by Day 28
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setAddExpenseOpen(true)}
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  <Plus size={14} /> Log Expense
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAddIncomeOpen(true)}
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  + Income
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* ROW 1: COMMITTED BILLS (lg:col-span-3) */}
+        <motion.div variants={fadeUp} className="md:col-span-1 lg:col-span-3">
+          <Card hover className="h-full flex flex-col justify-between p-5">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <CardLabel>Committed Bills</CardLabel>
+                <Link to="/commitments" className="text-[11px] text-brand hover:underline font-semibold">
+                  Manage →
+                </Link>
+              </div>
+              <CardValue size="lg" className="mt-2 mb-1 font-mono">
+                {formatCurrency(heroData.unpaidBills)}
+              </CardValue>
+              <p className="font-body text-xs text-ink-muted">unpaid dues this month</p>
+            </div>
+            
+            <div className="mt-4 pt-3 border-t border-border">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-danger font-semibold flex items-center gap-1">
+                  <AlertTriangle size={12} /> 2 bills due soon
+                </span>
+                <span className="text-ink-muted font-mono">5 bills left</span>
+              </div>
+              <DayStrip current={heroData.day} total={heroData.totalDays} />
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* ROW 1: PROJECTED MONTH-END (lg:col-span-3) */}
+        <motion.div variants={fadeUp} className="md:col-span-1 lg:col-span-3">
+          <Card hover className="h-full flex flex-col justify-between p-5">
+            <div>
+              <CardLabel>Projected Month-End</CardLabel>
+              <CardValue size="lg" className="mt-2 mb-1 text-danger font-mono font-bold">
+                {formatCurrency(heroData.projectedMonthEnd)}
+              </CardValue>
+              <p className="font-body text-xs text-ink-muted">deficit at current burn velocity</p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+              <div className="flex items-center gap-1 text-xs text-danger font-semibold">
+                <TrendingDown size={14} aria-hidden="true" />
+                <span>Hits ₹0 on {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay})</span>
+              </div>
+              <Link to="/simulate" className="text-[11px] text-brand hover:underline font-semibold">
+                Simulate cut →
+              </Link>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* ROW 2: FINANCIAL HEALTH SCORE (lg:col-span-4) */}
+        <motion.div variants={fadeUp} className="md:col-span-2 lg:col-span-4">
+          <Card hover className="h-full flex flex-col p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display font-[700] text-sm text-ink">Financial Health Index</h2>
+              <span className="font-mono text-xs text-ink-muted">Sum = {heroData.healthScore}</span>
+            </div>
+
+            <div className="flex items-center gap-4 py-1">
+              <HealthRing score={heroData.healthScore} />
+              <div className="flex-1">
+                <p className="font-display font-semibold text-xs text-ink">Needs Intervention</p>
+                <p className="font-body text-[11px] text-ink-muted mt-0.5">
+                  Overrun on food delivery threatens {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay}) insolvency.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-border flex flex-col gap-1.5 flex-1 justify-center">
+              {healthReasons.map((r, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-body text-[11px] text-ink-muted truncate">{r.label}</span>
+                  <span
+                    className={[
+                      'font-mono text-[11px] font-bold shrink-0',
+                      r.status === 'good' ? 'text-safe' : 'text-danger',
+                    ].join(' ')}
+                  >
+                    {r.points > 0 ? `+${r.points}` : r.points}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* ROW 2: FORECAST CHART (lg:col-span-8) */}
+        <motion.div variants={fadeUp} className="md:col-span-2 lg:col-span-8">
+          <Card className="h-full flex flex-col p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div>
+                <h2 className="font-display font-[700] text-sm text-ink">Balance & Danger Zone Forecast</h2>
+                <p className="font-body text-xs text-ink-muted">
+                  Balance projected to reach ₹0 by {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay})
+                </p>
+              </div>
+              <Badge variant="danger" className="self-start sm:self-auto font-bold text-xs">
+                <AlertTriangle size={11} className="mr-1" />
+                Red Zone: {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay})
               </Badge>
             </div>
-            <div style={{ minHeight: 220 }} aria-label="Balance forecast chart showing balance declining to ₹720 by day 30 with danger zone after day 23">
+
+            <div className="w-full flex-1 min-h-[220px]" aria-label="Balance forecast chart">
               <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={forecastData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <AreaChart
+                  data={forecastData}
+                  margin={{ top: 8, right: 32, left: -16, bottom: 0 }}
+                >
                   <defs>
                     <linearGradient id="brandGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.2} />
+                      <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.25} />
                       <stop offset="100%" stopColor="var(--brand)" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="dangerGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--danger)" stopOpacity={0.25} />
+                      <stop offset="0%" stopColor="var(--danger)" stopOpacity={0.3} />
                       <stop offset="100%" stopColor="var(--danger)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.6} vertical={false} />
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 11, fill: 'var(--ink-muted)', fontFamily: 'Manrope' }}
                     axisLine={false}
                     tickLine={false}
-                    interval={3}
+                    interval="preserveStartEnd"
+                    padding={{ right: 18 }}
                   />
                   <YAxis
                     tick={{ fontSize: 11, fill: 'var(--ink-muted)', fontFamily: 'JetBrains Mono' }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`}
+                    tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
                   />
                   <Tooltip content={<ForecastTooltip />} />
-                  {/* Safe balance */}
                   <Area
                     type="monotone"
                     dataKey="balance"
                     stroke="var(--brand)"
-                    strokeWidth={1.75}
+                    strokeWidth={2}
                     fill="url(#brandGrad)"
                     dot={false}
-                    activeDot={{ r: 4, fill: 'var(--brand)' }}
-                  />
-                  {/* Projected (dashed) */}
-                  <Area
-                    type="monotone"
-                    dataKey="projected"
-                    stroke="var(--danger)"
-                    strokeWidth={1.5}
-                    strokeDasharray="5 4"
-                    fill="url(#dangerGrad)"
-                    dot={false}
-                    activeDot={{ r: 4, fill: 'var(--danger)' }}
+                    activeDot={{ r: 5, fill: 'var(--brand)' }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+
+            <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-xs text-ink-muted">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-brand" /> Actual Spend
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-danger" /> {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay}) Danger Zone
+                </span>
+              </div>
+              <Link to="/calendar" className="text-brand font-semibold hover:underline">
+                View Calendar Grid →
+              </Link>
+            </div>
           </Card>
         </motion.div>
 
-        {/* CATEGORY DONUT */}
-        <motion.div variants={fadeUp} className="lg:col-span-4">
-          <Card className="h-full">
-            <h2 className="font-display font-[600] text-[1rem] text-ink mb-4">Spending by category</h2>
-            <div style={{ minHeight: 180 }} aria-label="Donut chart: Rent 40%, Food 19%, Transport 6%, others">
-              <ResponsiveContainer width="100%" height={180}>
+        {/* ROW 3: CATEGORY EXPENSES BREAKDOWN (lg:col-span-4) */}
+        <motion.div variants={fadeUp} className="md:col-span-2 lg:col-span-4">
+          <Card hover className="h-full flex flex-col p-5">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-display font-[700] text-sm text-ink">Category Spend (₹5,760)</h2>
+              <span className="font-mono text-xs text-ink-muted">8 Days</span>
+            </div>
+
+            <div className="h-[160px] flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
                   <Pie
                     data={categories}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={78}
                     dataKey="spent"
                     nameKey="name"
-                    paddingAngle={2}
-                    strokeWidth={0}
+                    innerRadius={48}
+                    outerRadius={68}
+                    paddingAngle={3}
                   >
                     {categories.map((cat, i) => (
                       <Cell key={i} fill={cat.color} />
@@ -386,78 +485,121 @@ export default function Dashboard() {
                     contentStyle={{
                       background: 'var(--surface-raised)',
                       border: '1px solid var(--border)',
-                      borderRadius: '12px',
-                      fontSize: '0.8125rem',
+                      borderRadius: '10px',
+                      fontSize: '0.75rem',
                       fontFamily: 'Manrope',
                     }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex flex-col gap-1.5 mt-2">
+
+            <div className="flex flex-col gap-1.5 mt-2 flex-1 justify-center">
               {categories.map((cat) => (
-                <div key={cat.name} className="flex items-center justify-between">
+                <div key={cat.name} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cat.color }} aria-hidden="true" />
-                    <span className="font-body text-[0.8125rem] text-ink-muted">{cat.name}</span>
+                    <span className="w-2 h-2 rounded-full" style={{ background: cat.color }} />
+                    <span className="text-ink-muted font-body">{cat.name}</span>
                   </div>
-                  <span className="font-mono text-[0.8125rem] font-[600] text-ink">
-                    {formatCurrency(cat.spent)}
-                  </span>
+                  <div className="flex items-center gap-2 font-mono">
+                    <span className="font-semibold text-ink">{formatCurrency(cat.spent)}</span>
+                    <span className="text-[10px] text-ink-muted">/ {formatCurrency(cat.budget)}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </Card>
         </motion.div>
 
-        {/* RECENT TRANSACTIONS */}
-        <motion.div variants={fadeUp} className="lg:col-span-5 md:col-span-2">
-          <Card>
+        {/* ROW 3: RECENT TRANSACTIONS (lg:col-span-8) */}
+        <motion.div variants={fadeUp} className="md:col-span-2 lg:col-span-8">
+          <Card className="h-full flex flex-col p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-display font-[600] text-[1rem] text-ink">Recent transactions</h2>
-              <button className="font-body text-[0.8125rem] text-brand font-[600] hover:underline focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none rounded px-1">
-                View all
-              </button>
+              <div>
+                <h2 className="font-display font-[700] text-sm text-ink">Recent Transactions</h2>
+                <p className="font-body text-xs text-ink-muted">Expenses tagged with auto-sync and expensive alerts</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link to="/connect" className="text-xs text-brand hover:underline font-semibold flex items-center gap-1">
+                  <RefreshCw size={11} /> Auto-Sync Feed
+                </Link>
+              </div>
             </div>
-            <div className="flex flex-col divide-y divide-border">
-              {transactions.slice(0, 5).map((tx) => (
-                <TxRow key={tx.id} tx={tx} />
+
+            <div className="divide-y divide-border overflow-y-auto max-h-[300px] pr-1">
+              {transactions.map((txn) => (
+                <div key={txn.id} className="py-2.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-[10px] bg-surface flex items-center justify-center shrink-0 border border-border">
+                      <span className="text-xs font-bold text-ink-muted">{txn.category[0]}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-display font-semibold text-xs text-ink truncate">
+                          {txn.description}
+                        </span>
+                        {txn.isExpensive && (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-danger-bg text-danger border border-danger/30">
+                            Expensive
+                          </span>
+                        )}
+                        {txn.isAutoSynced && (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-medium bg-surface text-ink-muted border border-border">
+                            Auto-synced
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-ink-muted font-body mt-0.5">
+                        {txn.merchant} • {txn.date}, {txn.time}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span
+                      className={[
+                        'font-mono text-xs font-bold',
+                        txn.type === 'credit' ? 'text-safe' : 'text-ink',
+                      ].join(' ')}
+                    >
+                      {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                    </span>
+                    <p className="text-[10px] text-ink-muted">{txn.category}</p>
+                  </div>
+                </div>
               ))}
             </div>
           </Card>
         </motion.div>
 
-        {/* INSIGHTS */}
-        <motion.div variants={fadeUp} className="lg:col-span-7 md:col-span-2">
-          <div className="flex flex-col gap-3 h-full">
-            <h2 className="font-display font-[600] text-[1rem] text-ink">Insights</h2>
+        {/* ROW 4: INSIGHTS ROW (SPAN FULL 12 COLUMNS) */}
+        <motion.div variants={fadeUp} className="md:col-span-2 lg:col-span-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {insights.map((ins) => (
-              <InsightChip key={ins.id} insight={ins} />
+              <Card key={ins.id} hover className="p-4 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    {ins.type === 'warning' ? (
+                      <AlertTriangle size={16} className="text-danger" />
+                    ) : ins.type === 'good' ? (
+                      <CheckCircle2 size={16} className="text-safe" />
+                    ) : (
+                      <Sparkles size={16} className="text-accent" />
+                    )}
+                    <span className="font-display font-bold text-xs text-ink">{ins.headline}</span>
+                  </div>
+                  <p className="font-body text-xs text-ink-muted leading-relaxed">{ins.body}</p>
+                </div>
+              </Card>
             ))}
           </div>
         </motion.div>
+
       </div>
 
-      {/* ── Floating Add Expense button ── */}
-      <div className="fixed bottom-[calc(80px+env(safe-area-inset-bottom,0px))] right-6 lg:bottom-8 z-30">
-        <button
-          id="add-expense-fab"
-          onClick={() => setAddExpenseOpen(true)}
-          className={[
-            'flex items-center gap-2 h-[52px] px-5 rounded-full',
-            'bg-brand text-brand-fg font-body font-[600]',
-            'shadow-[var(--shadow-raised)] hover:bg-brand-hover',
-            'transition-all duration-200 active:scale-95',
-            'focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none',
-          ].join(' ')}
-          aria-label="Add expense"
-        >
-          <TrendingDown size={18} aria-hidden="true" />
-          <span className="hidden sm:inline">Add expense</span>
-        </button>
-      </div>
-
+      {/* Dialogs */}
       <AddExpenseDialog open={addExpenseOpen} onOpenChange={setAddExpenseOpen} />
+      <AddIncomeDialog open={addIncomeOpen} onOpenChange={setAddIncomeOpen} />
     </motion.div>
   )
 }

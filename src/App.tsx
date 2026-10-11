@@ -5,11 +5,14 @@ import { DashboardSkeleton } from '@/components/ui/skeleton'
 
 // Lazy-loaded pages
 const Dashboard   = lazy(() => import('@/pages/Dashboard'))
+const Calendar    = lazy(() => import('@/pages/Calendar'))
 const Simulator   = lazy(() => import('@/pages/Simulator'))
 const Commitments = lazy(() => import('@/pages/Commitments'))
 const Goals       = lazy(() => import('@/pages/Goals'))
+const Connect     = lazy(() => import('@/pages/Connect'))
 const Events      = lazy(() => import('@/pages/Events'))
 const Summary     = lazy(() => import('@/pages/Summary'))
+const Settings    = lazy(() => import('@/pages/Settings'))
 const NotFound    = lazy(() => import('@/pages/NotFound'))
 
 function PageLoader() {
@@ -30,6 +33,14 @@ export default function App() {
             element={
               <Suspense fallback={<PageLoader />}>
                 <Dashboard />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <Calendar />
               </Suspense>
             }
           />
@@ -58,6 +69,14 @@ export default function App() {
             }
           />
           <Route
+            path="/connect"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <Connect />
+              </Suspense>
+            }
+          />
+          <Route
             path="/events"
             element={
               <Suspense fallback={<PageLoader />}>
@@ -70,6 +89,14 @@ export default function App() {
             element={
               <Suspense fallback={<PageLoader />}>
                 <Summary />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <Settings />
               </Suspense>
             }
           />

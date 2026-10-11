@@ -3,143 +3,240 @@ import { motion } from 'framer-motion'
 import { fadeUp } from '@/lib/motion'
 import {
   ArrowRight,
-  ArrowDown,
-  ArrowUp,
   CheckCircle2,
-  XCircle,
   AlertTriangle,
   Calculator,
+  GitCompare,
+  Sparkles,
+  Check,
+  History,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
-import { categoryOptions, heroData } from '@/data/mock'
-import { formatCurrency } from '@/lib/utils'
-
+import { categoryOptions, heroData, quickScenarios } from '@/data/mock'
+import { formatCurrency, getDateForDay } from '@/lib/utils'
 
 interface Delta {
   label: string
   before: string | number
   after: string | number
   unit?: string
-  direction: 'up' | 'down' | 'neutral'
-  highlight?: boolean
+  diffText?: string
+  status: 'safe' | 'warning' | 'danger' | 'neutral'
 }
 
 function DeltaRow({ delta }: { delta: Delta }) {
-  const icon = {
-    up:      <ArrowUp size={14} className="text-danger" aria-hidden="true" />,
-    down:    <ArrowDown size={14} className="text-safe" aria-hidden="true" />,
-    neutral: <ArrowRight size={14} className="text-ink-muted" aria-hidden="true" />,
-  }[delta.direction]
+  const statusColor = {
+    safe: 'text-safe',
+    warning: 'text-warning font-semibold',
+    danger: 'text-danger font-bold',
+    neutral: 'text-ink-muted',
+  }[delta.status]
 
   return (
-    <div className={[
-      'flex items-center justify-between gap-3 py-3',
-      delta.highlight && 'bg-warning-bg rounded-[10px] px-3 -mx-3',
-    ].filter(Boolean).join(' ')}>
-      <span className="font-body text-[0.875rem] text-ink-muted">{delta.label}</span>
-      <div className="flex items-center gap-2 font-mono text-[0.875rem] font-[600]">
-        <span className="text-ink-muted">{typeof delta.before === 'number' ? formatCurrency(delta.before) : delta.before}</span>
-        {icon}
-        <span className={delta.direction === 'up' ? 'text-danger' : delta.direction === 'down' ? 'text-safe' : 'text-ink'}>
+    <div className="flex items-center justify-between gap-3 py-3 border-b border-border/60 last:border-0">
+      <span className="font-body text-xs sm:text-sm text-ink-muted">{delta.label}</span>
+      <div className="flex items-center gap-2 font-mono text-xs sm:text-sm">
+        <span className="text-ink-muted">
+          {typeof delta.before === 'number' ? formatCurrency(delta.before) : delta.before}
+        </span>
+        <ArrowRight size={12} className="text-border-strong shrink-0" aria-hidden="true" />
+        <span className={statusColor}>
           {typeof delta.after === 'number' ? formatCurrency(delta.after) : delta.after}
           {delta.unit && <span className="font-body font-[400] text-ink-muted ml-0.5">{delta.unit}</span>}
         </span>
+        {delta.diffText && (
+          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-surface border border-border text-ink-muted ml-1">
+            {delta.diffText}
+          </span>
+        )}
       </div>
     </div>
   )
 }
 
 export default function Simulator() {
-  const [item, setItem] = useState('')
-  const [amount, setAmount] = useState('')
+  // Pre-filled example as required: Swiggy dinner, ₹1,200, Food
+  const [item, setItem] = useState('Swiggy dinner')
+  const [amount, setAmount] = useState('1200')
   const [category, setCategory] = useState('Food')
-  const [date, setDate] = useState('Today')
-  const [simulated, setSimulated] = useState(false)
+  const [date, setDate] = useState('2026-10-10')
+  const [compareMode, setCompareMode] = useState(false)
+  const [decisionConfirmed, setDecisionConfirmed] = useState(false)
 
   const amt = parseFloat(amount) || 0
-  const newBalance = heroData.balance - amt
-  const newAllowance = Math.max(0, (heroData.balance - amt) / (heroData.totalDays - heroData.day))
-  const inRed = newBalance < 2000
-  const verdictDanger = newBalance < 0
+  const currentLiquid = heroData.balance
+  const newBalance = Math.max(-1000, currentLiquid - amt)
+
+  // (balance - unpaid bills) / days left
+  const daysLeft = heroData.daysLeft
+  const newAllowance = Math.max(0, Math.round((newBalance - heroData.unpaidBills) / daysLeft))
+  const dangerDayShift = amt >= 2000 ? 5 : amt >= 1000 ? 3 : amt >= 500 ? 1 : 0
+  const simulatedDangerDay = Math.max(8, heroData.dangerDay - dangerDayShift)
+
+  const isCritical = newBalance < 0 || simulatedDangerDay <= 15
+  const isSevere = amt >= 1000 || simulatedDangerDay <= 23
 
   const deltas: Delta[] = [
     {
-      label: 'Balance',
+      label: 'Liquid Balance',
       before: heroData.balance,
       after: newBalance,
-      direction: amt > 0 ? 'up' : 'neutral',
-      highlight: inRed,
+      diffText: amt > 0 ? `-${formatCurrency(amt)}` : undefined,
+      status: newBalance < 4000 ? 'danger' : 'warning',
     },
     {
-      label: 'Daily allowance',
+      label: 'Calculated Daily Allowance',
       before: heroData.dailyAllowance,
-      after: Math.round(newAllowance),
+      after: newAllowance,
       unit: '/day',
-      direction: amt > 0 ? 'up' : 'neutral',
+      diffText: `-${formatCurrency(heroData.dailyAllowance - newAllowance)}/d`,
+      status: newAllowance < 150 ? 'danger' : 'warning',
     },
     {
-      label: 'Savings goal impact',
-      before: 'On track',
-      after: amt > 500 ? 'Delayed ~1 week' : 'Minimal impact',
-      direction: amt > 500 ? 'up' : 'neutral',
+      label: 'Savings Goal Delay',
+      before: 'On track (32% Headphones)',
+      after: amt >= 2000 ? 'Deadlock (Headphones frozen)' : amt >= 1000 ? 'Delayed 6 days' : 'Minor delay',
+      status: amt >= 1000 ? 'danger' : 'warning',
     },
     {
-      label: 'Forecast risk',
-      before: 'Medium',
-      after: inRed ? 'High' : 'Medium',
-      direction: inRed ? 'up' : 'neutral',
+      label: 'Projected Insolvency Day',
+      before: `${getDateForDay(heroData.dangerDay)} (Day ${heroData.dangerDay})`,
+      after: `${getDateForDay(simulatedDangerDay)} (Day ${simulatedDangerDay})`,
+      diffText: dangerDayShift > 0 ? `${dangerDayShift}d earlier` : 'Unchanged',
+      status: dangerDayShift > 0 ? 'danger' : 'safe',
     },
     {
-      label: 'Health score',
+      label: 'Month Forecast Risk',
+      before: `Danger: ${getDateForDay(heroData.dangerDay)} (Day ${heroData.dangerDay})`,
+      after: isCritical ? 'Critical Emergency' : 'High Risk',
+      status: 'danger',
+    },
+    {
+      label: 'Financial Health Score',
       before: heroData.healthScore,
-      after: Math.max(0, heroData.healthScore - Math.floor(amt / 200)),
-      direction: amt > 0 ? 'up' : 'neutral',
+      after: Math.max(20, heroData.healthScore - (amt >= 2000 ? 18 : amt >= 1000 ? 10 : 5)),
+      diffText: amt >= 1000 ? '-10 pts' : '-5 pts',
+      status: 'danger',
     },
   ]
+
+  const handleApplyScenario = (scenario: { label: string; amount: number; category: string }) => {
+    setItem(scenario.label)
+    setAmount(scenario.amount.toString())
+    setCategory(scenario.category)
+    setDecisionConfirmed(false)
+  }
+
+  const handleReset = () => {
+    setItem('')
+    setAmount('0')
+    setDecisionConfirmed(false)
+  }
 
   return (
     <motion.div
       initial="hidden"
       animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
-      className="flex flex-col gap-[var(--section-gap)]"
+      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+      className="flex flex-col gap-6"
     >
-      <motion.div variants={fadeUp}>
-        <h1 className="font-display font-[700] text-[clamp(1.75rem,3vw+1rem,2.75rem)] text-ink tracking-[-0.02em]">
-          Decision Simulator
-        </h1>
-        <p className="font-body text-ink-muted mt-1 max-w-[60ch]">
-          Before you spend, see what happens to your balance, allowance, and goals — in real time.
-        </p>
+      {/* Header */}
+      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display font-[800] text-2xl sm:text-3xl text-ink tracking-tight">
+            Decision Simulator
+          </h1>
+          <p className="font-body text-xs sm:text-sm text-ink-muted mt-1">
+            Test any purchase before you tap UPI. See exact ripple effects on your daily allowance and insolvency day.
+          </p>
+        </div>
+
+        {/* Compare Mode Toggle */}
+        <button
+          type="button"
+          onClick={() => setCompareMode((v) => !v)}
+          className={[
+            'self-start sm:self-auto flex items-center gap-2 px-3 py-1.5 rounded-[10px] border text-xs font-semibold transition-all cursor-pointer',
+            compareMode
+              ? 'bg-brand text-brand-fg border-brand'
+              : 'bg-surface border-border text-ink hover:bg-surface-raised',
+          ].join(' ')}
+          aria-pressed={compareMode}
+        >
+          <GitCompare size={14} />
+          <span>{compareMode ? 'Comparing 2 Scenarios' : 'Compare Two Decisions'}</span>
+        </button>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)] items-start">
-        {/* ── Left: Form ── */}
-        <motion.div variants={fadeUp}>
-          <Card>
-            <h2 className="font-display font-[600] text-[1.125rem] text-ink mb-5 flex items-center gap-2">
-              <Calculator size={18} aria-hidden="true" className="text-brand" />
-              What are you considering?
-            </h2>
-            <div className="flex flex-col gap-4">
+      {/* Quick Scenario Chips */}
+      <motion.div variants={fadeUp}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-ink-muted font-body font-medium flex items-center gap-1">
+            <Sparkles size={13} className="text-accent" /> Quick Scenarios:
+          </span>
+          {quickScenarios.map((s) => (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => handleApplyScenario(s)}
+              className={[
+                'px-2.5 py-1 rounded-[8px] text-xs font-semibold border transition-all cursor-pointer',
+                item === s.label
+                  ? 'bg-ink text-surface border-ink'
+                  : 'bg-surface border-border text-ink hover:bg-surface-raised',
+              ].join(' ')}
+            >
+              {s.label} <span className="font-mono text-ink-muted">({formatCurrency(s.amount)})</span>
+            </button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Main Grid: Form + Simulator Output */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* Left Column: Form (5 cols) */}
+        <motion.div variants={fadeUp} className="lg:col-span-5">
+          <Card className="p-5 h-full flex flex-col justify-between">
+            <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-4">
+              <div>
+                <h2 className="font-display font-[700] text-sm text-ink mb-1">
+                  Scenario Parameters
+                </h2>
+                <p className="text-xs text-ink-muted font-body">
+                  Configure purchase details to run the cashflow delta.
+                </p>
+              </div>
+
               <Input
-                label="Item or expense"
-                placeholder="Fatty Bao dinner, new headphones…"
+                label="Item or Expense Description"
+                placeholder="e.g. Swiggy dinner, Metro card..."
                 value={item}
-                onChange={(e) => setItem(e.target.value)}
+                onChange={(e) => {
+                  setItem(e.target.value)
+                  setDecisionConfirmed(false)
+                }}
+                required
               />
-              <Input
-                label="Amount (₹)"
-                type="number"
-                placeholder="1200"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                min="0"
-              />
-              <div className="flex gap-3">
-                <div className="flex-1">
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Input
+                    label="Amount (₹)"
+                    type="number"
+                    placeholder="1200"
+                    value={amount}
+                    onChange={(e) => {
+                      setAmount(e.target.value)
+                      setDecisionConfirmed(false)
+                    }}
+                    min="1"
+                    required
+                  />
+                </div>
+                <div>
                   <Select
                     label="Category"
                     value={category}
@@ -147,100 +244,249 @@ export default function Simulator() {
                     options={categoryOptions.map((c) => ({ value: c, label: c }))}
                   />
                 </div>
-                <div className="flex-1">
-                  <Input
-                    label="Date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink mb-1.5 font-body">
+                  Target Purchase Date
+                </label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full h-10 px-3 rounded-[12px] bg-surface border border-border text-ink text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+
+              {/* Context notes */}
+              <div className="p-3.5 rounded-[12px] bg-surface border border-border text-xs text-ink-muted">
+                <div className="flex items-center justify-between font-semibold text-ink mb-1">
+                  <span>Current Liquid Baseline:</span>
+                  <span className="font-mono">{formatCurrency(heroData.balance)}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span>Unpaid bills protected:</span>
+                  <span className="font-mono text-danger">-{formatCurrency(heroData.unpaidBills)}</span>
                 </div>
               </div>
-              <div className="flex gap-3 pt-1">
-                <Button
-                  variant="primary"
-                  className="flex-1"
-                  onClick={() => setSimulated(true)}
-                  disabled={!amount}
-                >
-                  Simulate
-                </Button>
+            </form>
+
+            <div className="pt-4 border-t border-border flex items-center gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReset}
+                className="w-full text-xs font-semibold"
+              >
+                Reset Parameters
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Right Column: Comparison Panel (7 cols) */}
+        <motion.div variants={fadeUp} className="lg:col-span-7">
+          <Card className="p-5 h-full flex flex-col justify-between">
+            <div>
+              {/* Verdict Banner */}
+              <div
+                className={[
+                  'rounded-[14px] p-3.5 sm:p-4 mb-4 border flex items-start gap-3',
+                  isCritical
+                    ? 'bg-danger-bg border-danger/40 text-danger'
+                    : isSevere
+                    ? 'bg-danger-bg/40 border-danger/30 text-danger'
+                    : 'bg-safe-bg/40 border-safe/30 text-safe',
+                ].join(' ')}
+              >
+                {isSevere ? (
+                  <AlertTriangle size={20} className="shrink-0 mt-0.5" />
+                ) : (
+                  <CheckCircle2 size={20} className="shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <h3 className="font-display font-[800] text-xs sm:text-sm uppercase tracking-wide">
+                    {isCritical
+                      ? 'Critical Insolvency Alert'
+                      : isSevere
+                      ? 'Danger: Danger Zone Pulled Forward'
+                      : 'Safe to Proceed'}
+                  </h3>
+                  <p className="font-body text-xs mt-1 text-ink-muted leading-relaxed">
+                    Spending <span className="font-bold font-mono text-ink">{formatCurrency(amt)}</span> on {item || 'this item'} pulls your ₹0 danger day forward by{' '}
+                    <span className="font-bold text-danger">{dangerDayShift} days</span> (from {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay}) to {getDateForDay(simulatedDangerDay)} (Day {simulatedDangerDay})). Daily allowance contracts to{' '}
+                    <span className="font-bold text-danger">{formatCurrency(newAllowance)}/day</span>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Side-by-Side Comparison if Compare Mode Enabled */}
+              {compareMode ? (
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3.5 rounded-[12px] bg-danger-bg/20 border border-danger/30">
+                    <span className="text-[10px] font-bold text-danger uppercase tracking-wider block mb-1">
+                      Scenario A: Buy Now (₹{amt})
+                    </span>
+                    <p className="font-mono text-lg font-bold text-ink">{formatCurrency(newBalance)}</p>
+                    <p className="text-[11px] text-danger font-semibold mt-1">
+                      {formatCurrency(newAllowance)}/day • Danger: {getDateForDay(simulatedDangerDay)} (Day {simulatedDangerDay})
+                    </p>
+                    <p className="text-[10px] text-ink-muted mt-2">
+                      Headphones delayed 6 days. Month end deficit deepens.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-[12px] bg-safe-bg/20 border border-safe/30">
+                    <span className="text-[10px] font-bold text-safe uppercase tracking-wider block mb-1">
+                      Scenario B: Wait 7 Days (₹0 now)
+                    </span>
+                    <p className="font-mono text-lg font-bold text-ink">{formatCurrency(heroData.balance)}</p>
+                    <p className="text-[11px] text-safe font-semibold mt-1">
+                      {formatCurrency(heroData.dailyAllowance)}/day • Danger: {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay})
+                    </p>
+                    <p className="text-[10px] text-ink-muted mt-2">
+                      Full daily runway preserved. Cushion remains intact.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Live Accessible Delta Table */}
+              <div aria-live="polite" aria-atomic="true">
+                <div className="flex items-center justify-between pb-2 mb-1 border-b border-border">
+                  <span className="text-xs font-bold text-ink font-display uppercase tracking-wider">Metric Impact</span>
+                  <span className="text-xs font-bold text-ink font-display uppercase tracking-wider">Before → Simulated</span>
+                </div>
+                <div className="divide-y divide-border/60">
+                  {deltas.map((d) => (
+                    <DeltaRow key={d.label} delta={d} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Decision Action Bar */}
+            <div className="pt-4 mt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs text-ink-muted font-body">
+                {decisionConfirmed ? (
+                  <span className="text-safe font-semibold flex items-center gap-1">
+                    <Check size={14} /> Decision simulated & recorded in cache
+                  </span>
+                ) : (
+                  <span>Ready to commit this decision to your plan?</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Button
                   variant="outline"
-                  onClick={() => { setSimulated(false); setAmount(''); setItem('') }}
+                  size="sm"
+                  onClick={handleReset}
+                  className="flex-1 sm:flex-none text-xs font-semibold"
                 >
-                  Reset
+                  Cancel
+                </Button>
+                <Button
+                  variant={isSevere ? 'warning' : 'primary'}
+                  size="sm"
+                  onClick={() => setDecisionConfirmed(true)}
+                  className="flex-1 sm:flex-none text-xs font-semibold gap-1.5"
+                >
+                  <Check size={14} /> Confirm Decision
                 </Button>
               </div>
             </div>
           </Card>
         </motion.div>
 
-        {/* ── Right: Before / After ── */}
-        <motion.div variants={fadeUp}>
-          <Card className={simulated && inRed ? 'border-warning' : ''}>
-            <h2 className="font-display font-[600] text-[1.125rem] text-ink mb-1">Before vs After</h2>
-            {!simulated ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <div className="w-16 h-16 rounded-[16px] bg-surface-raised flex items-center justify-center">
-                  <Calculator size={28} className="text-ink-muted" aria-hidden="true" />
-                </div>
-                <p className="font-body text-ink-muted text-center max-w-[28ch]">
-                  Fill in the form and hit <strong>Simulate</strong> to see the impact.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Verdict banner */}
-                <div className={[
-                  'rounded-[12px] px-4 py-3 mb-5 flex items-center gap-3',
-                  verdictDanger
-                    ? 'bg-danger-bg border border-danger'
-                    : inRed
-                    ? 'bg-warning-bg border border-warning'
-                    : 'bg-safe-bg border border-safe',
-                ].join(' ')}>
-                  {verdictDanger
-                    ? <XCircle size={18} className="text-danger shrink-0" aria-hidden="true" />
-                    : inRed
-                    ? <AlertTriangle size={18} className="text-warning shrink-0" aria-hidden="true" />
-                    : <CheckCircle2 size={18} className="text-safe shrink-0" aria-hidden="true" />
-                  }
-                  <p className={[
-                    'font-body font-[600] text-[0.9375rem]',
-                    verdictDanger ? 'text-danger' : inRed ? 'text-warning' : 'text-safe',
-                  ].join(' ')}>
-                    {verdictDanger
-                      ? `This puts you in the red immediately. You can't afford it.`
-                      : inRed
-                      ? `This tightens your budget significantly — you'll have only ${formatCurrency(newBalance)} left.`
-                      : `Manageable. Your daily allowance drops to ${formatCurrency(Math.round(newAllowance))}/day.`
-                    }
-                  </p>
-                </div>
-
-                {/* Delta rows */}
-                <div className="flex flex-col divide-y divide-border">
-                  {deltas.map((d, i) => (
-                    <DeltaRow key={i} delta={d} />
-                  ))}
-                </div>
-
-                <hr className="ledger-divider my-4" />
-
-                <div className="flex gap-3">
-                  <Button variant={verdictDanger ? 'danger' : 'primary'} className="flex-1" size="md">
-                    {verdictDanger ? 'Confirm anyway' : 'Confirm spend'}
-                  </Button>
-                  <Button variant="outline" onClick={() => setSimulated(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </>
-            )}
-          </Card>
-        </motion.div>
       </div>
+
+      {/* LOWER HALF: SIMULATION ENGINE LOGIC & PAST SIMULATED SCENARIOS */}
+      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-2">
+        {/* Left: Engine Rules (6 cols) */}
+        <div className="lg:col-span-6">
+          <Card className="p-5 h-full">
+            <div className="flex items-center gap-2 mb-2">
+              <Calculator size={16} className="text-brand" />
+              <h2 className="font-display font-[700] text-sm text-ink">
+                How the Simulator Computes Ripple Effects
+              </h2>
+            </div>
+            <p className="font-body text-xs text-ink-muted leading-relaxed mb-4">
+              A standard budgeting app only subtracts money. Broke But Functional recalculates the four core survival vectors:
+            </p>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-2.5 text-xs">
+                <span className="w-5 h-5 rounded-md bg-brand/10 text-brand flex items-center justify-center shrink-0 font-mono font-bold text-[11px]">
+                  1
+                </span>
+                <div>
+                  <span className="font-bold text-ink">Daily Allowance Recalibration: </span>
+                  <span className="text-ink-muted">
+                    Subsumes all unpaid committed bills (₹1,840) first before dividing remaining balance across 22 days.
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 text-xs">
+                <span className="w-5 h-5 rounded-md bg-accent/20 text-accent-fg flex items-center justify-center shrink-0 font-mono font-bold text-[11px]">
+                  2
+                </span>
+                <div>
+                  <span className="font-bold text-ink">Insolvency Day Acceleration: </span>
+                  <span className="text-ink-muted">
+                    Any single discretionary purchase &gt;₹1,000 immediately brings {getDateForDay(heroData.dangerDay)} (Day {heroData.dangerDay}) forward by 3 days.
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 text-xs">
+                <span className="w-5 h-5 rounded-md bg-safe/10 text-safe flex items-center justify-center shrink-0 font-mono font-bold text-[11px]">
+                  3
+                </span>
+                <div>
+                  <span className="font-bold text-ink">Goal Opportunity Cost: </span>
+                  <span className="text-ink-muted">
+                    Translates the price tag into days delayed for your Headphones (₹2,500 target) or Emergency Cushion.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Right: Past Simulation History (6 cols) */}
+        <div className="lg:col-span-6">
+          <Card className="p-5 h-full">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <History size={16} className="text-brand" />
+                <h2 className="font-display font-[700] text-sm text-ink">Recent What-If Simulations</h2>
+              </div>
+              <span className="text-[10px] text-ink-muted font-mono font-semibold">Simulated Today</span>
+            </div>
+
+            <div className="divide-y divide-border">
+              {[
+                { item: 'Uniqlo Oversized T-shirt', amt: 1990, verdict: 'Rejected: Delays Headphones 14d', date: '1 hour ago', color: 'text-danger' },
+                { item: 'Zomato Late Night Biryani', amt: 450, verdict: 'Approved: Within surplus buffer', date: '3 hours ago', color: 'text-safe' },
+                { item: 'Noise Cancelling Buds', amt: 2500, verdict: 'Postponed to Nov 2 top-up', date: 'Yesterday', color: 'text-warning' },
+              ].map((sim, i) => (
+                <div key={i} className="py-2.5 flex items-center justify-between text-xs">
+                  <div>
+                    <p className="font-semibold text-ink">{sim.item}</p>
+                    <p className={`text-[11px] ${sim.color} mt-0.5 font-medium`}>{sim.verdict}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono font-bold text-ink">{formatCurrency(sim.amt)}</span>
+                    <p className="text-[10px] text-ink-muted">{sim.date}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </motion.div>
     </motion.div>
   )
 }

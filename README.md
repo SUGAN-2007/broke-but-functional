@@ -1,8 +1,9 @@
 # Broke But Functional
 
 > Survive 30 days on ₹10,000. A Gen Z personal finance app that actually gets it.
+> Timeline: Oct 3 to Nov 1. Today is Day 8 (Oct 10). Starting budget ₹10,000 + ₹2,000 top-up.
 
-**Tech stack:** React 19 + TypeScript + Vite 8 · Tailwind CSS v4 · shadcn/ui (Radix primitives) · Recharts · framer-motion · React Router 6
+**Tech stack:** React 19 + TypeScript + Vite 8 · Tailwind CSS v4 · shadcn/ui (Radix primitives) · Recharts · framer-motion · React Router 7
 
 ---
 
@@ -11,7 +12,7 @@
 ```bash
 npm install
 npm run dev       # http://localhost:5173
-npm run build     # production bundle
+npm run build     # production bundle (npx tsc -b && vite build)
 ```
 
 ---
@@ -22,14 +23,16 @@ npm run build     # production bundle
 src/
 ├── components/
 │   ├── ui/            # Atomic components (Card, Button, Badge, Input, Dialog, Progress, Skeleton)
-│   ├── layout/        # AppShell, SidebarRail, BottomNav
+│   ├── layout/        # AppShell, Header, Navigation (SidebarRail, BottomNav)
+│   ├── dialogs/       # FinanceDialogs (AddIncome, AddBill, AddGoal, Contribute, Resolve, ConfirmReset)
 │   └── dashboard/     # AddExpenseDialog
-├── pages/             # Dashboard, Simulator, Commitments, Goals, Events, Summary, NotFound
+├── pages/             # Dashboard, Calendar, Simulator, Commitments, Goals, Connect, Events, Summary, Settings, NotFound
 ├── data/
-│   └── mock.ts        # All hardcoded data (transactions, bills, goals, events, forecast…)
+│   └── mock.ts        # Single source of truth (transactions, bills, goals, calendar, connectors, events, forecast)
 ├── lib/
+│   ├── motion.ts      # Typed Framer Motion variants
 │   └── utils.ts       # cn(), formatCurrency(), formatPercent()
-├── index.css          # Design tokens (CSS variables) + Tailwind @theme inline
+├── index.css          # Design tokens (CSS variables) + Tailwind v4 @theme inline
 └── App.tsx            # React Router setup with lazy-loaded pages + Suspense
 ```
 
@@ -37,63 +40,59 @@ src/
 
 ## Design tokens
 
-All colour, radius, shadow, spacing and font values live as **CSS custom properties** in [`src/index.css`](./src/index.css). Tailwind picks them up via `@theme inline {}` — so tokens are usable as utility classes (`bg-brand`, `text-ink-muted`, `rounded-[var(--radius-card)]`). No hex codes ever appear in components.
+All colour, radius, shadow, spacing and font values live as **CSS custom properties** in [`src/index.css`](file:///d:/project/Survive/src/index.css). Tailwind v4 consumes them via `@theme inline {}` — so tokens are usable as utility classes (`bg-brand`, `text-ink-muted`, `bg-safe-bg`, `border-border`). No arbitrary hex codes appear in component JSX.
 
 ```css
-/* Light mode example */
+/* Light mode */
 :root {
   --brand:   #0F4C3A;   /* forest green  */
   --accent:  #F2A900;   /* marigold      */
-  --bg:      #F4EFE6;   /* warm paper    */
+  --bg:      #F4EFE6;   /* warm paper cream */
   --ink:     #14231C;   /* dark text     */
+  --safe:    #1F9D6B;   /* runway safe   */
+  --warning: #E8A317;   /* caution       */
+  --danger:  #D8432F;   /* red danger    */
 }
 /* Dark mode */
 .dark {
-  --brand:   #5EE0A0;   /* mint          */
+  --brand:   #5EE0A0;   /* mint green    */
   --accent:  #FFB82E;   /* warm marigold */
   --bg:      #0B1511;   /* deep forest   */
+  --ink:     #EDE7DA;   /* warm text     */
 }
 ```
 
 ---
 
-## Design process
-
-This project used the **[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)** skill (v1) to drive every design decision:
-
-| Decision | Skill query | Outcome |
-|----------|-------------|---------|
-| **Style pattern** | `"dashboard bento grid asymmetric layout fintech" --domain style` | **Bento Box Grid** — varied card spans (2×1 hero, 1×1 stats, 2×1 charts), hover lift, asymmetric layout |
-| **Motion profile** | `--motion 5` dial | Standard stagger list (300-450ms, `back.out(1.4)` easing) on card mount |
-| **Chart types** | `"bento grid dashboard finance spending analytics" --domain chart` | Gauge/ring for KPI, Area for forecast (with danger zone), Donut for categories |
-| **Stack guidance** | `"shadcn theming tailwind CSS variables dark mode" --stack shadcn` | OKLCH semantic variables, `@theme inline` Tailwind v4 mapping, complete `:root`/`.dark` pairs |
-| **Density** | `--density 7` dial | Standard-to-dense: `clamp()` for card padding, `8px` minimum grid gap |
-| **Anti-patterns confirmed** | design system output | No purple/indigo, no gradient text, no glassmorphism blobs, no repeated identical icon-circle cards |
-| **Typography** | Brief spec from skill + manual override | Bricolage Grotesque (display) + Manrope (body) + JetBrains Mono (numbers), all from `@fontsource` |
-
----
-
 ## Pages
 
-| Route | Description |
-|-------|-------------|
-| `/` | **Dashboard** — hero balance with count-up, 30-day strip, health ring, forecast chart, category donut, insights |
-| `/simulate` | **Decision Simulator** — form + Before/After comparison with verdict banner |
-| `/commitments` | **Bills & Subscriptions** — grouped by overdue/due/paid with stamp badges |
-| `/goals` | **Savings Goals** — progress cards, contribute button, add-goal dialog |
-| `/events` | **Surprise Events** — 3-choice cards with consequence hints and animated resolution |
-| `/summary` | **Month Summary** — grade badge, key stats, wins/mistakes lists, shareable recap |
-| `*` | **404** — receipt-style not-found page with witty copy |
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | **Dashboard** | 12-column bento grid, liquid balance count-up, ₹200/day daily allowance, Day 26 danger zone forecast, pie category breakdown, recent transactions with "Expensive" and "Auto-synced" tags, Active Event banner. |
+| `/calendar` | **Spending Calendar** | 30-day heatmap (Oct 3 – Nov 1) with per-day burn levels, bills-due dots, income markers, "What counts as expensive?" controls, summary strip, and week-by-week mobile fallback. |
+| `/simulate` | **Decision Simulator** | Pre-filled Swiggy dinner test, quick scenario chips (Dinner, Headphones, Trip, Phone repair), Before vs After comparison, "Compare Two Decisions" toggle (Buy now vs Wait a week), and confirmation action bar. |
+| `/commitments` | **Bills & Subscriptions** | Category icons (Home, Film, Zap, Smartphone, Wifi, Dumbbell), graduated urgency status (red 1-2d, amber 3-7d, neutral 8+d, green paid), Add Bill dialog, and Mark as Paid actions. Unpaid total matches Dashboard (₹1,840). |
+| `/goals` | **Savings Goals** | Challenge-sized targets (Headphones ₹2.5k, Cushion ₹1.5k, Goa ₹3k, Course ₹2k), interactive contribution dialog, 3-tier survival allocation protocol, and milestone roadmap. |
+| `/connect` | **Connect / Auto-Sync** | **Simulated UI only**: Read-only account aggregator demos, SMS reader, available connector types, 3-step permission flow (zero credentials), "Needs review" inbox, activity logs, and privacy panel. |
+| `/events` | **Surprise Incidents** | Unexpected event cards (Phone screen cracked, Friend's birthday, Surprise exam fee) with 3 choice buttons, consequence hints, animated resolution state, and resolved incidents log. |
+| `/summary` | **Month Summary** | C+ midpoint grade, key metrics, starting plan vs actual outcome before/after table, category burn progress, discipline wins vs slips, and copyable challenge card. |
+| `/settings` | **Settings** | Starting budget editor, start date, expensive sensitivity controls, theme switcher, JSON export/import, and month reset dialog. |
+| `*` | **404** | Receipt-styled not-found page with witty copy and direct link back to dashboard. |
 
 ---
 
-## Accessibility
+## Simulated Connectors Note
 
-- Semantic HTML: `main`, `nav`, `section`, `h1–h3` in document order
-- Skip-to-main link (visible on focus)
-- `focus-visible:ring-2` on every interactive element
-- `aria-label` on all icon-only buttons and charts
-- `aria-hidden="true"` on all decorative icons
-- `prefers-reduced-motion` disables all framer-motion animations
-- WCAG AA contrast in both light and dark themes
-- Touch targets: `min-height: 44px` enforced via `min-h-[44px]` token
+> [!NOTE]
+> The `/connect` page is a purely simulated UI demonstration. No real credentials (usernames, passwords, OTPs, PINs, bank accounts, or cards) are ever accepted or stored. All pipelines operate with mock state in local memory to demonstrate how privacy-first read-only account aggregator feeds would look.
+
+---
+
+## Accessibility & Quality Checklist
+
+- **Semantic HTML**: Proper `main`, `header`, `nav`, `section`, `h1–h3` outline.
+- **Skip Link**: Accessible skip-to-main-content link for keyboard users.
+- **Live Regions**: `aria-live="polite"` on simulation comparison outputs.
+- **Contrast**: WCAG AA verified in both light and dark modes.
+- **Touch Targets**: Minimum $44\text{px} \times 44\text{px}$ touch targets across all mobile controls and buttons.
+- **Responsive**: Tested fluidly across 360px, 768px, 1024px, and 1440px with no horizontal overflow.

@@ -25,6 +25,8 @@ const buttonVariants = cva(
           'bg-transparent text-ink-muted hover:text-ink hover:bg-surface active:scale-[0.98]',
         danger:
           'bg-danger-bg text-danger border border-danger hover:bg-danger hover:text-white active:scale-[0.98]',
+        warning:
+          'bg-warning-bg text-warning border border-warning hover:bg-warning hover:text-white active:scale-[0.98]',
         safe:
           'bg-safe-bg text-safe border border-safe hover:bg-safe hover:text-white active:scale-[0.98]',
       },

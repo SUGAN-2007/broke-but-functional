@@ -1,4 +1,6 @@
-/* Transactions, category expenses, goals, events data */
+/* Single source of truth for Broke But Functional
+   30-day challenge: Oct 3 to Nov 1. Today is Day 8 (Oct 10).
+*/
 
 export interface Transaction {
   id: string
@@ -10,6 +12,8 @@ export interface Transaction {
   date: string
   time: string
   icon: string
+  isExpensive?: boolean
+  isAutoSynced?: boolean
 }
 
 export interface Category {
@@ -36,7 +40,8 @@ export interface Bill {
   dueDate: string
   dueInDays: number
   status: 'paid' | 'due' | 'overdue'
-  category: string
+  category: 'Rent' | 'Entertainment' | 'Utilities' | 'Mobile' | 'Health'
+  icon: 'Home' | 'Film' | 'Zap' | 'Smartphone' | 'Wifi' | 'Dumbbell'
   autopay: boolean
 }
 
@@ -46,6 +51,8 @@ export interface Event {
   description: string
   amount: number
   severity: 'low' | 'medium' | 'high'
+  resolved?: boolean
+  resolvedChoice?: string
   choices: EventChoice[]
 }
 
@@ -71,90 +78,128 @@ export interface InsightCard {
   body: string
 }
 
+export interface CalendarDay {
+  dayNumber: number
+  dateStr: string // e.g. "Oct 3"
+  dayOfWeek: string // "Fri"
+  totalSpend: number
+  hasIncome?: boolean
+  hasBillDue?: boolean
+  hasEvent?: boolean
+  isFuture: boolean
+  isToday?: boolean
+  transactions: {
+    description: string
+    amount: number
+    category: string
+    isExpensive?: boolean
+    isAutoSynced?: boolean
+  }[]
+}
+
+export interface Connector {
+  id: string
+  name: string
+  type: string
+  category: string
+  monogram: string
+  status: 'connected' | 'not_connected' | 'syncing' | 'needs_attention' | 'coming_soon'
+  lastSynced?: string
+  importedThisMonth?: number
+  autoCategorise?: boolean
+  autoAddBills?: boolean
+}
+
+export interface SyncInboxItem {
+  id: string
+  merchant: string
+  description: string
+  amount: number
+  date: string
+  category: string
+  source: string
+  isDuplicate?: boolean
+}
+
+export interface SyncLogEntry {
+  id: string
+  message: string
+  timestamp: string
+  type: 'success' | 'info' | 'warning'
+}
+
 /* ── HERO DATA ───────────────────────────────────────── */
 export const heroData = {
-  balance: 6240,
   startingBalance: 10000,
+  incomeTopUp: 2000,
+  balance: 6240,
   day: 8,
   totalDays: 30,
-  dailyAllowance: 311,
-  yesterdaySpend: 428,
-  projectedMonthEnd: 720,
-  riskLevel: 'medium' as const,
+  daysLeft: 22,
+  unpaidBills: 1840,
+  dailyAllowance: 200, // (6240 - 1840) / 22 = 200
+  yesterdaySpend: 310,
+  projectedMonthEnd: -320, // Negative / red by Day 26
+  dangerDay: 26,
+  riskLevel: 'danger' as const,
   healthScore: 68,
 }
 
-/* ── TRANSACTIONS ─────────────────────────────────────── */
+/* ── TRANSACTIONS (EXPENSES SO FAR SUM TO ₹5,760) ───── */
 export const transactions: Transaction[] = [
   {
     id: 'txn-001',
     description: 'Dinner delivery',
     merchant: 'Swiggy',
-    amount: 349,
+    amount: 1200,
     type: 'debit',
     category: 'Food',
     date: 'Today',
     time: '8:42 PM',
     icon: 'UtensilsCrossed',
+    isExpensive: true,
+    isAutoSynced: true,
   },
   {
     id: 'txn-002',
-    description: 'Monthly rent share',
+    description: 'Room rent share',
     merchant: 'BankTransfer',
     amount: 3000,
     type: 'debit',
     category: 'Rent',
-    date: 'Oct 10',
+    date: 'Oct 4',
     time: '10:00 AM',
     icon: 'Home',
+    isExpensive: true,
+    isAutoSynced: true,
   },
   {
     id: 'txn-003',
-    description: 'Metro card recharge',
-    merchant: 'Delhi Metro',
-    amount: 200,
-    type: 'debit',
-    category: 'Transport',
-    date: 'Oct 10',
-    time: '9:15 AM',
-    icon: 'Train',
+    description: 'Pocket money top-up',
+    merchant: 'Parents / UPI',
+    amount: 2000,
+    type: 'credit',
+    category: 'Income',
+    date: 'Oct 7',
+    time: '4:15 PM',
+    icon: 'Banknote',
+    isAutoSynced: true,
   },
   {
     id: 'txn-004',
-    description: 'Salary credited',
-    merchant: 'Razorpay Payroll',
-    amount: 10000,
-    type: 'credit',
-    category: 'Income',
-    date: 'Oct 3',
-    time: '12:00 PM',
-    icon: 'Banknote',
+    description: 'Metro card recharge',
+    merchant: 'Delhi Metro',
+    amount: 480,
+    type: 'debit',
+    category: 'Transport',
+    date: 'Oct 6',
+    time: '9:15 AM',
+    icon: 'Train',
+    isAutoSynced: true,
   },
   {
     id: 'txn-005',
-    description: 'Monthly subscription',
-    merchant: 'Spotify',
-    amount: 119,
-    type: 'debit',
-    category: 'Entertainment',
-    date: 'Oct 5',
-    time: '2:00 AM',
-    icon: 'Music',
-  },
-  {
-    id: 'txn-006',
-    description: 'Coffee + pastry',
-    merchant: 'Blue Tokai',
-    amount: 280,
-    type: 'debit',
-    category: 'Food',
-    date: 'Oct 9',
-    time: '11:30 AM',
-    icon: 'Coffee',
-  },
-  {
-    id: 'txn-007',
-    description: 'UPSC book',
+    description: 'Exam study guide',
     merchant: 'Amazon',
     amount: 399,
     type: 'debit',
@@ -164,19 +209,54 @@ export const transactions: Transaction[] = [
     icon: 'BookOpen',
   },
   {
-    id: 'txn-008',
-    description: 'Auto to office',
-    merchant: 'Rapido',
-    amount: 85,
+    id: 'txn-006',
+    description: 'Spotify student duo',
+    merchant: 'Spotify',
+    amount: 119,
     type: 'debit',
-    category: 'Transport',
-    date: 'Oct 11',
-    time: '9:05 AM',
-    icon: 'Car',
+    category: 'Entertainment',
+    date: 'Oct 5',
+    time: '2:00 AM',
+    icon: 'Music',
+    isAutoSynced: true,
+  },
+  {
+    id: 'txn-007',
+    description: 'Chai + samosa run',
+    merchant: 'Campus Canteen',
+    amount: 119,
+    type: 'debit',
+    category: 'Entertainment',
+    date: 'Oct 9',
+    time: '5:30 PM',
+    icon: 'Coffee',
+  },
+  {
+    id: 'txn-008',
+    description: 'Stationery & photocopy',
+    merchant: 'Print Point',
+    amount: 223,
+    type: 'debit',
+    category: 'Misc',
+    date: 'Oct 8',
+    time: '11:10 AM',
+    icon: 'Layers',
+  },
+  {
+    id: 'txn-009',
+    description: 'Grocery staples & eggs',
+    merchant: 'Blinkit',
+    amount: 220,
+    type: 'debit',
+    category: 'Food',
+    date: 'Oct 5',
+    time: '7:40 PM',
+    icon: 'UtensilsCrossed',
+    isAutoSynced: true,
   },
 ]
 
-/* ── CATEGORIES ───────────────────────────────────────── */
+/* ── CATEGORIES (SUM = ₹5,760) ────────────────────────── */
 export const categories: Category[] = [
   { name: 'Rent', spent: 3000, budget: 3000, color: '#0F4C3A' },
   { name: 'Food', spent: 1420, budget: 2000, color: '#F2A900' },
@@ -186,220 +266,243 @@ export const categories: Category[] = [
   { name: 'Misc', spent: 223, budget: 500, color: '#8FA095' },
 ]
 
-/* ── BILLS ────────────────────────────────────────────── */
+/* ── BILLS (UNPAID SUM = ₹1,840) ─────────────────────── */
 export const bills: Bill[] = [
   {
     id: 'bill-001',
     name: 'Room Rent Share',
     amount: 3000,
-    dueDate: 'Oct 10',
-    dueInDays: -1,
+    dueDate: 'Oct 4',
+    dueInDays: -6,
     status: 'paid',
-    category: 'Housing',
+    category: 'Rent',
+    icon: 'Home',
     autopay: false,
   },
   {
     id: 'bill-002',
-    name: 'Electricity Bill',
-    amount: 340,
-    dueDate: 'Oct 15',
-    dueInDays: 4,
+    name: 'Gym Membership',
+    amount: 500,
+    dueDate: 'Oct 11',
+    dueInDays: 1,
     status: 'due',
-    category: 'Utilities',
+    category: 'Health',
+    icon: 'Dumbbell',
     autopay: false,
   },
   {
     id: 'bill-003',
-    name: 'Jio Prepaid',
-    amount: 299,
-    dueDate: 'Oct 20',
-    dueInDays: 9,
-    status: 'due',
-    category: 'Mobile',
-    autopay: true,
-  },
-  {
-    id: 'bill-004',
-    name: 'Spotify Premium',
-    amount: 119,
-    dueDate: 'Oct 5',
-    dueInDays: -6,
-    status: 'paid',
-    category: 'Entertainment',
-    autopay: true,
-  },
-  {
-    id: 'bill-005',
-    name: 'Internet (Airtel)',
-    amount: 599,
-    dueDate: 'Oct 28',
-    dueInDays: 17,
-    status: 'due',
-    category: 'Utilities',
-    autopay: false,
-  },
-  {
-    id: 'bill-006',
     name: 'Netflix Split',
     amount: 65,
     dueDate: 'Oct 12',
-    dueInDays: 1,
+    dueInDays: 2,
     status: 'due',
     category: 'Entertainment',
+    icon: 'Film',
     autopay: false,
   },
   {
-    id: 'bill-007',
-    name: 'Gym Membership',
-    amount: 800,
-    dueDate: 'Sep 30',
-    dueInDays: -11,
-    status: 'overdue',
-    category: 'Health',
+    id: 'bill-004',
+    name: 'Electricity Bill',
+    amount: 380,
+    dueDate: 'Oct 15',
+    dueInDays: 5,
+    status: 'due',
+    category: 'Utilities',
+    icon: 'Zap',
+    autopay: false,
+  },
+  {
+    id: 'bill-005',
+    name: 'Jio Mobile Prepaid',
+    amount: 299,
+    dueDate: 'Oct 20',
+    dueInDays: 10,
+    status: 'due',
+    category: 'Mobile',
+    icon: 'Smartphone',
+    autopay: true,
+  },
+  {
+    id: 'bill-006',
+    name: 'Internet (Airtel Fibernet)',
+    amount: 596,
+    dueDate: 'Oct 28',
+    dueInDays: 18,
+    status: 'due',
+    category: 'Utilities',
+    icon: 'Wifi',
     autopay: false,
   },
 ]
 
-/* ── SAVINGS GOALS ────────────────────────────────────── */
+/* ── SAVINGS GOALS (EXACTLY AS SPECIFIED) ─────────────── */
 export const goals: Goal[] = [
   {
     id: 'goal-001',
-    name: 'Emergency Fund',
-    target: 15000,
-    saved: 4200,
-    deadline: 'Dec 2026',
+    name: 'Headphones',
+    target: 2500,
+    saved: 800,
+    deadline: 'Oct 30',
     color: '#0F4C3A',
-    icon: 'Shield',
-  },
-  {
-    id: 'goal-002',
-    name: 'New Laptop',
-    target: 55000,
-    saved: 12000,
-    deadline: 'Mar 2027',
-    color: '#F2A900',
     icon: 'Laptop',
   },
   {
-    id: 'goal-003',
-    name: 'Goa Trip',
-    target: 8000,
-    saved: 3500,
-    deadline: 'Jan 2027',
+    id: 'goal-002',
+    name: 'Emergency Cushion',
+    target: 1500,
+    saved: 500,
+    deadline: 'Nov 1',
     color: '#1F9D6B',
+    icon: 'Shield',
+  },
+  {
+    id: 'goal-003',
+    name: 'Goa Weekend',
+    target: 3000,
+    saved: 600,
+    deadline: 'Nov 15',
+    color: '#F2A900',
     icon: 'Plane',
   },
   {
     id: 'goal-004',
-    name: 'Course Fee (UPSC)',
-    target: 20000,
-    saved: 6000,
-    deadline: 'Feb 2027',
+    name: 'Course Fee',
+    target: 2000,
+    saved: 0,
+    deadline: 'Nov 1',
     color: '#E8A317',
     icon: 'GraduationCap',
   },
 ]
 
-/* ── EVENTS ───────────────────────────────────────────── */
+/* ── UNEXPECTED EVENTS ────────────────────────────────── */
 export const events: Event[] = [
   {
     id: 'evt-001',
-    title: 'Friend\'s birthday dinner',
-    description: 'Rohan\'s turning 24. The group\'s going to Fatty Bao, Hauz Khas.',
-    amount: 1200,
-    severity: 'medium',
+    title: 'Phone screen cracked',
+    description: 'Slipped on metro stairs. Screen glass shattered but touch works. Local repair shop quoted ₹1,500.',
+    amount: 1500,
+    severity: 'high',
     choices: [
       {
-        label: 'Pay now',
-        tag: 'social',
-        consequence: 'Balance drops ₹1,200. Daily allowance tightens to ₹232.',
-        impact: -1200,
+        label: 'Pay now (₹1,500)',
+        tag: 'repair',
+        consequence: 'Instant fix. Daily allowance plunges from ₹200 to ₹131.',
+        impact: -1500,
       },
       {
-        label: 'Counter-offer',
-        tag: 'negotiate',
-        consequence: 'Suggest a cheaper spot. Social capital risk: low.',
-        impact: -500,
+        label: 'Defer 2 weeks',
+        tag: 'defer',
+        consequence: 'Put tape on it. Risk of cuts or display bleeding, but keeps cash intact now.',
+        impact: 0,
       },
       {
-        label: 'Rain check',
+        label: 'Borrow backup phone',
         tag: 'skip',
-        consequence: 'You miss the moment. Balance untouched.',
+        consequence: 'Use old Redmi phone until month ends. Zero financial hit.',
         impact: 0,
       },
     ],
   },
   {
     id: 'evt-002',
-    title: 'Laptop charger died',
-    description: 'Dell OEM charger gave up mid-deadline. Alternatives: ₹899 original, ₹349 local.',
-    amount: 899,
-    severity: 'high',
+    title: "Friend's birthday dinner",
+    description: "Rohan's turning 22. Group plan is dinner at Big Chill Cafe. Your split estimate is ₹800.",
+    amount: 800,
+    severity: 'medium',
     choices: [
       {
-        label: 'Original (₹899)',
-        tag: 'safe',
-        consequence: 'Guaranteed safe for the laptop. Hurts the wallet.',
-        impact: -899,
+        label: 'Attend & Pay (₹800)',
+        tag: 'social',
+        consequence: 'Great memories, but eats 4 days worth of daily allowance.',
+        impact: -800,
       },
       {
-        label: 'Local (₹349)',
-        tag: 'risk',
-        consequence: 'Saves ₹550 now. 30% chance of battery damage later.',
-        impact: -349,
+        label: 'Only drinks/dessert',
+        tag: 'counter',
+        consequence: 'Show up, celebrate, order just dessert for ₹250.',
+        impact: -250,
       },
       {
-        label: 'Borrow from lab',
-        tag: 'defer',
-        consequence: 'Free for 3 days. Still need to buy eventually.',
+        label: 'Skip with excuse',
+        tag: 'skip',
+        consequence: 'Save all ₹800. FOMO for 2 days, balance safe.',
         impact: 0,
       },
     ],
   },
   {
     id: 'evt-003',
-    title: 'Medical: urgent OPD visit',
-    description: 'Persistent throat infection. Walk-in OPD at Apollo costs ₹600 + meds ~₹250.',
-    amount: 850,
+    title: 'Surprise exam fee',
+    description: 'University announced university semester certification fee deadline of ₹600 by Oct 18.',
+    amount: 600,
     severity: 'high',
     choices: [
       {
-        label: 'Go now',
-        tag: 'health',
-        consequence: '₹850 spent. Non-negotiable. Health first.',
-        impact: -850,
+        label: 'Pay now (₹600)',
+        tag: 'mandatory',
+        consequence: 'Academic clearance secured. -₹600 deducted from surplus.',
+        impact: -600,
       },
       {
-        label: 'Teleconsult',
-        tag: 'smart',
-        consequence: 'Practo at ₹199. Saves ₹651. Works for minor cases.',
-        impact: -199,
+        label: 'Late fee window',
+        tag: 'defer',
+        consequence: 'Pay next month with ₹100 penalty. Frees up cash this week.',
+        impact: 0,
       },
       {
-        label: 'Home remedies',
-        tag: 'risky',
-        consequence: 'No spend. High risk: could worsen over 3–5 days.',
+        label: 'Request fee waiver',
+        tag: 'waiver',
+        consequence: 'Submit departmental application. 50% chance of approval.',
         impact: 0,
       },
     ],
   },
 ]
 
-/* ── FORECAST ─────────────────────────────────────────── */
+export const resolvedEventsHistory = [
+  {
+    id: 'evt-hist-1',
+    title: 'Metro card lost',
+    date: 'Oct 5 (Day 3)',
+    choiceMade: 'Bought new card (₹200)',
+    impact: -200,
+    status: 'Resolved',
+  },
+  {
+    id: 'evt-hist-2',
+    title: 'Group project printouts',
+    date: 'Oct 7 (Day 5)',
+    choiceMade: 'Split 4 ways (₹95)',
+    impact: -95,
+    status: 'Resolved',
+  },
+]
+
+/* ── FORECAST (DAY 26 IS DANGER DAY, PROJECTED -320) ──── */
 export const forecastData: ForecastPoint[] = [
-  { day: 1, label: 'Oct 3', balance: 10000 },
-  { day: 3, label: 'Oct 5', balance: 9400 },
-  { day: 5, label: 'Oct 7', balance: 8710 },
-  { day: 8, label: 'Oct 10', balance: 6240 },
-  { day: 10, label: 'Oct 12', balance: 5800, projected: 5800 },
-  { day: 13, label: 'Oct 15', balance: 5460, projected: 5460, dangerZone: false },
-  { day: 15, label: 'Oct 17', balance: 5120, projected: 5120 },
-  { day: 18, label: 'Oct 20', balance: 4290, projected: 4290 },
-  { day: 20, label: 'Oct 22', balance: 3710, projected: 3710 },
-  { day: 23, label: 'Oct 25', balance: 2900, projected: 2900, dangerZone: true },
-  { day: 25, label: 'Oct 27', balance: 2320, projected: 2320, dangerZone: true },
-  { day: 28, label: 'Oct 30', balance: 1480, projected: 1480, dangerZone: true },
-  { day: 30, label: 'Nov 1', balance: 720, projected: 720, dangerZone: true },
+  { day: 1,  label: 'Oct 3', balance: 10000 },
+  { day: 3,  label: 'Oct 5', balance: 9400 },
+  { day: 5,  label: 'Oct 7', balance: 8710 },
+  { day: 8,  label: 'Oct 10', balance: 6240 },
+  { day: 11, label: 'Oct 13', balance: 5540, projected: 5540 },
+  { day: 14, label: 'Oct 16', balance: 4780, projected: 4780 },
+  { day: 18, label: 'Oct 20', balance: 3740, projected: 3740 },
+  { day: 22, label: 'Oct 24', balance: 2200, projected: 2200, dangerZone: true },
+  { day: 26, label: 'Oct 28', balance: 0, projected: 0, dangerZone: true },
+  { day: 30, label: 'Nov 1', balance: -320, projected: -320, dangerZone: true },
+]
+
+/* ── HEALTH SCORE REASONS (SUM EXACTLY = 68) ──────────── */
+export const healthReasons = [
+  { label: 'On-time bill payment record', points: 22, status: 'good' as const },
+  { label: 'Budget category adherence', points: 20, status: 'good' as const },
+  { label: 'Savings goal discipline', points: 16, status: 'good' as const },
+  { label: 'Emergency cushion fund', points: 14, status: 'good' as const },
+  { label: 'Discretionary spend limit', points: 12, status: 'good' as const },
+  { label: 'Food budget overrun (Swiggy)', points: -8, status: 'bad' as const },
+  { label: 'Forecast: dips into red on Oct 28 (Day 26)', points: -8, status: 'bad' as const },
 ]
 
 /* ── INSIGHTS ─────────────────────────────────────────── */
@@ -407,62 +510,348 @@ export const insights: InsightCard[] = [
   {
     id: 'ins-001',
     type: 'warning',
-    headline: 'Food spend is 71% of budget on Day 8',
-    body: 'You\'ve spent ₹1,420 on food in 8 days — that\'s ₹177/day against a ₹67/day target. Cut 2 Swiggy orders a week and save ₹556 by month-end.',
+    headline: 'Warning: Balance hits ₹0 on Oct 28 (Day 26)',
+    body: 'At current spending velocity (₹310/day vs ₹200 daily allowance), you will run completely out of cash 4 days before month end.',
   },
   {
     id: 'ins-002',
     type: 'good',
-    headline: 'Transport is under control 🎉',
-    body: 'Only ₹480 spent vs ₹600 budget. At this rate you end the month ₹120 ahead on commute costs.',
+    headline: 'Transport is locked down',
+    body: 'Only ₹480 spent on metro pass with 22 days left. You will comfortably finish the month with ₹120 transit surplus.',
   },
   {
     id: 'ins-003',
     type: 'tip',
-    headline: 'Gym membership is overdue',
-    body: 'You\'ve been paying ₹800/month but last logged 0 gym visits this month. Skip for October, redirect to Emergency Fund.',
+    headline: 'Food is 71% consumed on Oct 10 (Day 8)',
+    body: '₹1,420 spent of ₹2,000 food budget. Limiting food spend to ₹26/day or skipping 1 food delivery protects Oct 28 (Day 26).',
   },
 ]
 
-/* ── HEALTH SCORE REASONS ─────────────────────────────── */
-export const healthReasons = [
-  { label: 'On-time bill payments', points: 20, status: 'good' as const },
-  { label: 'Savings goal progress', points: 18, status: 'good' as const },
-  { label: 'Food budget overrun', points: -8, status: 'bad' as const },
-  { label: 'Daily allowance discipline', points: 22, status: 'good' as const },
-  { label: 'Gym membership overdue', points: -6, status: 'bad' as const },
-  { label: 'No impulse purchases', points: 12, status: 'good' as const },
-  { label: 'Forecast: dips into red by day 28', points: -10, status: 'bad' as const },
+/* ── 30-DAY SPENDING CALENDAR (OCT 3 - NOV 1) ────────── */
+export const calendarDays: CalendarDay[] = [
+  // Day 1 - Oct 3 (Fri)
+  {
+    dayNumber: 1,
+    dateStr: 'Oct 3',
+    dayOfWeek: 'Fri',
+    totalSpend: 150,
+    hasIncome: false,
+    isFuture: false,
+    transactions: [
+      { description: 'Notebook & stationery', amount: 150, category: 'Education' }
+    ]
+  },
+  // Day 2 - Oct 4 (Sat)
+  {
+    dayNumber: 2,
+    dateStr: 'Oct 4',
+    dayOfWeek: 'Sat',
+    totalSpend: 3100,
+    hasBillDue: true,
+    isFuture: false,
+    transactions: [
+      { description: 'Room rent share', amount: 3000, category: 'Rent', isExpensive: true, isAutoSynced: true },
+      { description: 'Chai & snack', amount: 100, category: 'Food' }
+    ]
+  },
+  // Day 3 - Oct 5 (Sun)
+  {
+    dayNumber: 3,
+    dateStr: 'Oct 5',
+    dayOfWeek: 'Sun',
+    totalSpend: 339,
+    hasBillDue: true,
+    isFuture: false,
+    transactions: [
+      { description: 'Spotify student duo', amount: 119, category: 'Entertainment', isAutoSynced: true },
+      { description: 'Blinkit grocery staples', amount: 220, category: 'Food', isAutoSynced: true }
+    ]
+  },
+  // Day 4 - Oct 6 (Mon)
+  {
+    dayNumber: 4,
+    dateStr: 'Oct 6',
+    dayOfWeek: 'Mon',
+    totalSpend: 480,
+    hasBillDue: false,
+    isFuture: false,
+    transactions: [
+      { description: 'Metro card recharge', amount: 480, category: 'Transport', isAutoSynced: true }
+    ]
+  },
+  // Day 5 - Oct 7 (Tue)
+  {
+    dayNumber: 5,
+    dateStr: 'Oct 7',
+    dayOfWeek: 'Tue',
+    totalSpend: 95,
+    hasIncome: true,
+    hasEvent: true,
+    isFuture: false,
+    transactions: [
+      { description: 'Pocket money top-up (credit)', amount: -2000, category: 'Income', isAutoSynced: true },
+      { description: 'Project printouts', amount: 95, category: 'Education' }
+    ]
+  },
+  // Day 6 - Oct 8 (Wed)
+  {
+    dayNumber: 6,
+    dateStr: 'Oct 8',
+    dayOfWeek: 'Wed',
+    totalSpend: 622,
+    hasBillDue: false,
+    isFuture: false,
+    transactions: [
+      { description: 'Exam study guide', amount: 399, category: 'Education' },
+      { description: 'Stationery & photocopy', amount: 223, category: 'Misc' }
+    ]
+  },
+  // Day 7 - Oct 9 (Thu)
+  {
+    dayNumber: 7,
+    dateStr: 'Oct 9',
+    dayOfWeek: 'Thu',
+    totalSpend: 119,
+    hasBillDue: false,
+    isFuture: false,
+    transactions: [
+      { description: 'Canteen snacks', amount: 119, category: 'Food' }
+    ]
+  },
+  // Day 8 - Oct 10 (Fri) [TODAY]
+  {
+    dayNumber: 8,
+    dateStr: 'Oct 10',
+    dayOfWeek: 'Fri',
+    totalSpend: 1200,
+    isToday: true,
+    isFuture: false,
+    transactions: [
+      { description: 'Dinner delivery (Swiggy)', amount: 1200, category: 'Food', isExpensive: true, isAutoSynced: true }
+    ]
+  },
+  // Day 9 - Oct 11 (Sat)
+  { dayNumber: 9, dateStr: 'Oct 11', dayOfWeek: 'Sat', totalSpend: 500, hasBillDue: true, isFuture: true, transactions: [{ description: 'Gym Membership (due)', amount: 500, category: 'Health' }] },
+  // Day 10 - Oct 12 (Sun)
+  { dayNumber: 10, dateStr: 'Oct 12', dayOfWeek: 'Sun', totalSpend: 65, hasBillDue: true, isFuture: true, transactions: [{ description: 'Netflix split (due)', amount: 65, category: 'Entertainment' }] },
+  // Day 11 - Oct 13 (Mon)
+  { dayNumber: 11, dateStr: 'Oct 13', dayOfWeek: 'Mon', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 12 - Oct 14 (Tue)
+  { dayNumber: 12, dateStr: 'Oct 14', dayOfWeek: 'Tue', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 13 - Oct 15 (Wed)
+  { dayNumber: 13, dateStr: 'Oct 15', dayOfWeek: 'Wed', totalSpend: 380, hasBillDue: true, isFuture: true, transactions: [{ description: 'Electricity Bill (due)', amount: 380, category: 'Utilities' }] },
+  // Day 14 - Oct 16 (Thu)
+  { dayNumber: 14, dateStr: 'Oct 16', dayOfWeek: 'Thu', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 15 - Oct 17 (Fri)
+  { dayNumber: 15, dateStr: 'Oct 17', dayOfWeek: 'Fri', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 16 - Oct 18 (Sat)
+  { dayNumber: 16, dateStr: 'Oct 18', dayOfWeek: 'Sat', totalSpend: 600, hasEvent: true, isFuture: true, transactions: [{ description: 'Surprise exam fee', amount: 600, category: 'Education' }] },
+  // Day 17 - Oct 19 (Sun)
+  { dayNumber: 17, dateStr: 'Oct 19', dayOfWeek: 'Sun', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 18 - Oct 20 (Mon)
+  { dayNumber: 18, dateStr: 'Oct 20', dayOfWeek: 'Mon', totalSpend: 299, hasBillDue: true, isFuture: true, transactions: [{ description: 'Jio Mobile (due)', amount: 299, category: 'Mobile' }] },
+  // Day 19 - Oct 21 (Tue)
+  { dayNumber: 19, dateStr: 'Oct 21', dayOfWeek: 'Tue', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 20 - Oct 22 (Wed)
+  { dayNumber: 20, dateStr: 'Oct 22', dayOfWeek: 'Wed', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 21 - Oct 23 (Thu)
+  { dayNumber: 21, dateStr: 'Oct 23', dayOfWeek: 'Thu', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 22 - Oct 24 (Fri)
+  { dayNumber: 22, dateStr: 'Oct 24', dayOfWeek: 'Fri', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 23 - Oct 25 (Sat)
+  { dayNumber: 23, dateStr: 'Oct 25', dayOfWeek: 'Sat', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 24 - Oct 26 (Sun)
+  { dayNumber: 24, dateStr: 'Oct 26', dayOfWeek: 'Sun', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 25 - Oct 27 (Mon)
+  { dayNumber: 25, dateStr: 'Oct 27', dayOfWeek: 'Mon', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 26 - Oct 28 (Tue) [DANGER DAY]
+  { dayNumber: 26, dateStr: 'Oct 28', dayOfWeek: 'Tue', totalSpend: 596, hasBillDue: true, isFuture: true, transactions: [{ description: 'Airtel Fibernet (due)', amount: 596, category: 'Utilities' }] },
+  // Day 27 - Oct 29 (Wed)
+  { dayNumber: 27, dateStr: 'Oct 29', dayOfWeek: 'Wed', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 28 - Oct 30 (Thu)
+  { dayNumber: 28, dateStr: 'Oct 30', dayOfWeek: 'Thu', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 29 - Oct 31 (Fri)
+  { dayNumber: 29, dateStr: 'Oct 31', dayOfWeek: 'Fri', totalSpend: 0, isFuture: true, transactions: [] },
+  // Day 30 - Nov 1 (Sat)
+  { dayNumber: 30, dateStr: 'Nov 1', dayOfWeek: 'Sat', totalSpend: 0, isFuture: true, transactions: [] },
+]
+
+/* ── CONNECTORS / SYNC DATA ───────────────────────────── */
+export const connectors: Connector[] = [
+  {
+    id: 'conn-1',
+    name: 'UPI / Payments Feed',
+    type: 'UPI & Instant Pay',
+    category: 'UPI and payment apps',
+    monogram: 'UP',
+    status: 'connected',
+    lastSynced: '2 mins ago',
+    importedThisMonth: 14,
+    autoCategorise: true,
+    autoAddBills: true,
+  },
+  {
+    id: 'conn-2',
+    name: 'Primary Student Account',
+    type: 'Bank Account (Read-Only AA)',
+    category: 'Bank accounts',
+    monogram: 'SB',
+    status: 'connected',
+    lastSynced: '15 mins ago',
+    importedThisMonth: 8,
+    autoCategorise: true,
+    autoAddBills: true,
+  },
+  {
+    id: 'conn-3',
+    name: 'SMS Transaction Reader',
+    type: 'Android Local Parser',
+    category: 'SMS transaction reader',
+    monogram: 'SM',
+    status: 'needs_attention',
+    lastSynced: 'Yesterday',
+    importedThisMonth: 6,
+    autoCategorise: false,
+    autoAddBills: true,
+  },
+  {
+    id: 'conn-4',
+    name: 'Email Receipts & E-Bills',
+    type: 'Gmail Receipt Scanner',
+    category: 'Email receipts',
+    monogram: 'EM',
+    status: 'not_connected',
+  },
+  {
+    id: 'conn-5',
+    name: 'Campus Payroll & Stipend',
+    type: 'Direct Deposit Reader',
+    category: 'Payroll and income sources',
+    monogram: 'PR',
+    status: 'not_connected',
+  },
+  {
+    id: 'conn-6',
+    name: 'Split-Bill Syncer',
+    type: 'Group Expense Integrator',
+    category: 'Split-bill apps',
+    monogram: 'SB',
+    status: 'coming_soon',
+  },
+  {
+    id: 'conn-7',
+    name: 'CSV / Statement Import',
+    type: 'Bank Passbook CSV / PDF',
+    category: 'CSV / statement import',
+    monogram: 'CS',
+    status: 'not_connected',
+  },
+]
+
+export const syncInboxItems: SyncInboxItem[] = [
+  {
+    id: 'inbox-1',
+    merchant: 'Zomato Daily',
+    description: 'Breakfast paratha roll',
+    amount: 140,
+    date: 'Oct 10, 9:20 AM',
+    category: 'Food',
+    source: 'UPI / Payments Feed',
+    isDuplicate: false,
+  },
+  {
+    id: 'inbox-2',
+    merchant: 'Zomato Daily',
+    description: 'Breakfast paratha roll (repeated entry)',
+    amount: 140,
+    date: 'Oct 10, 9:21 AM',
+    category: 'Food',
+    source: 'SMS Transaction Reader',
+    isDuplicate: true,
+  },
+  {
+    id: 'inbox-3',
+    merchant: 'Stationery World',
+    description: 'Spiral notebook A4',
+    amount: 85,
+    date: 'Oct 9, 4:10 PM',
+    category: 'Education',
+    source: 'UPI / Payments Feed',
+    isDuplicate: false,
+  },
+]
+
+export const syncActivityLogs: SyncLogEntry[] = [
+  {
+    id: 'log-1',
+    message: 'Auto-imported 14 transactions from UPI / Payments Feed',
+    timestamp: '2 mins ago',
+    type: 'success',
+  },
+  {
+    id: 'log-2',
+    message: 'Pocket money top-up detected: ₹2,000 credited',
+    timestamp: 'Oct 7, 4:15 PM',
+    type: 'success',
+  },
+  {
+    id: 'log-3',
+    message: 'SMS Reader permission token renewal required',
+    timestamp: 'Yesterday',
+    type: 'warning',
+  },
+  {
+    id: 'log-4',
+    message: 'Connected Primary Student Account via RBI Account Aggregator protocol',
+    timestamp: 'Oct 3, 10:00 AM',
+    type: 'info',
+  },
 ]
 
 /* ── MONTH SUMMARY ────────────────────────────────────── */
 export const monthSummary = {
-  grade: 'B+',
-  totalSpent: 9280,
-  totalSaved: 720,
-  bestDay: 'Oct 7 — spent only ₹89',
-  worstDay: 'Oct 10 — rent + groceries, ₹3,480',
+  grade: 'C+',
+  totalSpent: 5760,
+  totalSaved: 1900,
+  startingBudget: 10000,
+  incomeTopUp: 2000,
+  projectedMonthEnd: -320,
+  bestDay: 'Oct 7 (Day 5) — spent only ₹95, got ₹2,000 top-up',
+  worstDay: 'Oct 4 (Day 2) — rent share of ₹3,000 paid',
   wins: [
-    'Cooked at home 14 days straight',
-    'Hit transport budget — ₹120 surplus',
-    'Zero subscription impulse buys',
-    'Emergency fund grew by ₹1,200',
+    'Rent ₹3,000 paid immediately without penalty',
+    'Transport on track: ₹480 spent vs ₹600 budget',
+    'Saved ₹1,900 across headphone & emergency goals',
+    'Pocket money top-up of ₹2,000 recorded',
   ],
   mistakes: [
-    'Swiggy 11× in 30 days (₹3,800 total)',
-    'Gym membership paid, never used',
-    'Forgot to track 3 cash expenses',
+    'Swiggy dinner order of ₹1,200 on Oct 10 (Day 8) blew daily allowance',
+    'Food category at 71% limit with 22 days to go',
+    'Gym membership ₹500 due with low attendance',
   ],
-  shareTagline: 'Survived October on ₹10K. Grade: B+. Not bad, not great.',
+  planVsActual: {
+    planSpendDay8: 3200,
+    actualSpendDay8: 5760,
+    planBuffer: 1500,
+    actualBuffer: 480,
+  },
+  shareTagline: 'Oct 10 (Day 8 of 30) on ₹10K. Balance: ₹6,240. Risk: Red by Oct 28 (Day 26). Survived so far.',
 }
 
 /* ── SIMULATOR DEFAULTS ───────────────────────────────── */
 export const simulatorDefaults = {
-  item: '',
-  amount: 0,
+  item: 'Swiggy dinner',
+  amount: 1200,
   category: 'Food',
-  date: 'Today',
+  date: 'Today (Oct 10)',
 }
+
+export const quickScenarios = [
+  { label: 'Dinner out', amount: 800, category: 'Food' },
+  { label: 'Headphones', amount: 2500, category: 'Education' },
+  { label: 'Weekend trip', amount: 3000, category: 'Entertainment' },
+  { label: 'Phone repair', amount: 1500, category: 'Misc' },
+]
 
 export const categoryOptions = [
   'Food',

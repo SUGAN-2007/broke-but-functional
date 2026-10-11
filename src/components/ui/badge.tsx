@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-type BadgeVariant = 'safe' | 'warning' | 'danger' | 'muted' | 'brand' | 'accent'
+type BadgeVariant = 'safe' | 'warning' | 'danger' | 'muted' | 'brand' | 'accent' | 'neutral'
 type StampVariant = 'paid' | 'due' | 'overdue' | 'pending'
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -14,6 +14,7 @@ export function Badge({ className, variant = 'muted', children, ...props }: Badg
     warning: 'bg-warning-bg text-warning border border-warning',
     danger:  'bg-danger-bg text-danger border border-danger',
     muted:   'bg-surface-raised text-ink-muted border border-border',
+    neutral: 'bg-surface-raised text-ink-muted border border-border',
     brand:   'bg-brand text-brand-fg border border-brand',
     accent:  'bg-accent text-accent-fg border border-accent',
   }[variant]
