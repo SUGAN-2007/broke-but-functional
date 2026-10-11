@@ -32,7 +32,7 @@ export function Header() {
       if (theme === 'dark') {
         setIsDark(true)
         document.documentElement.classList.add('dark')
-      } else if (theme === 'light') {
+      } else {
         setIsDark(false)
         document.documentElement.classList.remove('dark')
       }

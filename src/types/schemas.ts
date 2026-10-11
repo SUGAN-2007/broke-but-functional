@@ -11,7 +11,7 @@ export const SettingsSchema = z.object({
 
 export type SettingsData = z.infer<typeof SettingsSchema>
 
-export const ThemeSchema = z.enum(['light', 'dark', 'system']).default('system')
+export const ThemeSchema = z.enum(['light', 'dark', 'system']).default('light')
 export type ThemeData = z.infer<typeof ThemeSchema>
 
 export const TransactionSchema = z.object({

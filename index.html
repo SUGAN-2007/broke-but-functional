@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Broke But Functional — Survive on ₹10K | Gen Z Personal Finance</title>
     <meta name="description" content="Survive 30 days on ₹10,000. Gen Z personal finance app with cashflow forecasting, committed bills tracking, interactive survival calendar, and simulated connectors." />
-    <link rel="canonical" href="https://survive-fintech.vercel.app/" />
+    <link rel="canonical" href="https://broke-but-functional-five.vercel.app/" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />
@@ -14,19 +14,6 @@
     <!-- Theme Color for light and dark modes -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4EFE6" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1511" />
-
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Broke But Functional — Survive on ₹10K" />
-    <meta property="og:description" content="Survive 30 days on ₹10,000. Gen Z personal finance dashboard, expense tracking, and bills calendar." />
-    <meta property="og:url" content="https://survive-fintech.vercel.app/" />
-    <meta property="og:image" content="/favicon.png" />
-
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Broke But Functional — Survive on ₹10K" />
-    <meta name="twitter:description" content="Survive 30 days on ₹10,000. Gen Z personal finance dashboard, expense tracking, and bills calendar." />
-    <meta name="twitter:image" content="/favicon.png" />
 
     <!-- Critical Font Preload (Hero balance number uses JetBrains Mono) -->
     <link
@@ -37,15 +24,11 @@
       crossorigin="anonymous"
     />
 
-    <!-- Inline script to apply dark mode before first paint without flash -->
+    <!-- Inline script to default to light theme (clean first paint without flash) -->
     <script>
       (function() {
         try {
-          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
+          document.documentElement.classList.remove('dark');
         } catch (_) {}
       })();
     </script>

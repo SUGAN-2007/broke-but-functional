@@ -20,7 +20,7 @@ const appStore = typeof window !== 'undefined'
 // In-memory fallback in case IndexedDB is blocked, unsupported, or in private mode
 const memoryFallback: Record<string, unknown> = {
   'schema-version': CURRENT_SCHEMA_VERSION,
-  theme: 'system',
+  theme: 'light',
   settings: {
     budget: 10000,
     startDate: '2026-10-03',

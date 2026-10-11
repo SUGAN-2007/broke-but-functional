@@ -131,8 +131,8 @@
   --accent-fg:       #0B1511;
   --warning:         #F5B025;
   --warning-bg:      rgba(245, 176, 37, 0.18);
-  --danger:          #FF7B66;
-  --danger-bg:       rgba(255, 123, 102, 0.18);
+  --danger:          #FFA494;
+  --danger-bg:       rgba(255, 123, 102, 0.12);
   --shadow-card:     0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
   --shadow-raised:   0 2px 8px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
 }

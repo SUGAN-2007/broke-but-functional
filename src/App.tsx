@@ -35,6 +35,16 @@ function RouteWrapper({ children }: { children: React.ReactNode }) {
   )
 }
 
+function DashboardRouteWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={null}>
+        {children}
+      </Suspense>
+    </ErrorBoundary>
+  )
+}
+
 function RouteTracker() {
   const location = useLocation()
 
@@ -68,7 +78,7 @@ export default function App() {
       <RouteTracker />
       <Routes>
         <Route element={<AppShell />}>
-          <Route path="/" element={<RouteWrapper><Dashboard /></RouteWrapper>} />
+          <Route path="/" element={<DashboardRouteWrapper><Dashboard /></DashboardRouteWrapper>} />
           <Route path="/calendar" element={<RouteWrapper><Calendar /></RouteWrapper>} />
           <Route path="/simulate" element={<RouteWrapper><Simulator /></RouteWrapper>} />
           <Route path="/commitments" element={<RouteWrapper><Commitments /></RouteWrapper>} />

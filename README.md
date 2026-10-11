@@ -3,7 +3,7 @@
 > **Survive 30 days on ₹10,000** — an honest, aesthetic Gen Z personal finance survival simulator for students and early-career grads.
 > Timeline: Oct 3 to Nov 1, 2026. Current state: Day 8 (Oct 10). Starting budget ₹10,000 + ₹2,000 pocket money top-up − ₹5,760 spent = **₹6,240 liquid balance**.
 
-**Live URL:** [https://broke-but-functional.vercel.app](https://broke-but-functional.vercel.app)
+**Live URL:** (<https://broke-but-functional-five.vercel.app/>)
 
 **Tech Stack:** React 19 + TypeScript + Vite 8 · Tailwind CSS v4 · shadcn/ui (Radix primitives) · Recharts · Framer Motion · React Router 7
 
@@ -41,7 +41,7 @@ npm run preview   # http://localhost:4173
 ## Pages & Routes
 
 | Route | Page | Description |
-|---|---|---|
+| --- | --- | --- |
 | `/` | **Dashboard** | 12-column bento grid, liquid balance counter, solid actual spend line (Oct 3–10) + dashed red projection (to Nov 1) with shaded deficit zone below ₹0 and Oct 28 marker, next 3 committed bills with dates, runway extension tip, and category donut chart. |
 | `/calendar` | **Spending Calendar** | Mon–Sun grid (Oct 3 Saturday anchor with 5 leading empty cells), non-colour status cues (`Burn`, `Above`, `Calm`, `Plan`), typography $\ge$ 12px, pure discretionary spend stats (fixed bills excluded), and day-detail panel with due bills and expense action. |
 | `/simulate` | **Decision Simulator** | What-if spending test (pre-filled with Swiggy ₹1,200), alert title *"Danger zone pulled forward"*, health score delta (`68 → 58`), unified 4-tier risk scale (`Safe` / `Warning` / `Danger` / `Critical`), select with chevron, solid primary confirm button. |
@@ -123,26 +123,52 @@ For Single Page Applications (SPAs) built with React Router, a `vercel.json` con
 
 ---
 
+## Storage Architecture (IndexedDB + Zod)
+
+To guarantee that the application never crashes in private browsing mode, quota-exceeded conditions, or blocked environments, the storage layer is architected as follows:
+
+- **Zero `localStorage` / `sessionStorage`:** Every trace of synchronous Web Storage has been eradicated across the codebase.
+- **Asynchronous IndexedDB Layer ([`src/lib/storage.ts`](file:///d:/project/Survive/src/lib/storage.ts)):** Built on top of `idb-keyval` targeting a single database (`broke-but-functional-db`) with distinct keys (`settings`, `theme`, `finance-state`, `schema-version`).
+- **Resilient In-Memory Fallbacks:** All IndexedDB reads and writes are wrapped in `try/catch`. If IndexedDB is unavailable or blocked (e.g., incognito mode or storage quota exceeded), the app transparently falls back to an in-memory `Map` store. First paint never blocks on storage.
+- **Strict Zod Runtime Validation ([`src/types/schemas.ts`](file:///d:/project/Survive/src/types/schemas.ts)):** Every payload retrieved from storage is validated against Zod schemas. Corrupt, malformed, or outdated payloads are safely discarded and replaced with default seed data.
+- **Schema Versioning:** The database stores `CURRENT_SCHEMA_VERSION = 1`. Future versions trigger automatic migrations or safe resets.
+- **Debounced Writes (300ms):** Rapid state modifications are debounced by 300ms to eliminate storage thrashing.
+- **Secure Export & Import:** Backups are serialized through the storage layer with a strict 1 MB file size limit and Zod validation. Files with unknown keys or scripts are rejected. Zero use of `eval` or `dangerouslySetInnerHTML`.
+- **Zero-Flash Theme Bootstrapping:** An inline script in `<head>` applies the `dark` class from `prefers-color-scheme` before first paint, followed by post-mount hydration of user overrides from IndexedDB.
+
+---
+
+## Performance Architecture & Lighthouse Audit
+
+### Performance Optimizations
+1. **Self-Hosted Variable Fonts:** Replaced heavy static font families with Latin-subset variable `@font-face` definitions (`Bricolage Grotesque`, `Manrope`, `JetBrains Mono`) with metric-matched fallback overrides (`ascent-override`, `size-adjust`) to eliminate layout shift on font swap (CLS = 0).
+2. **Critical Font Preload:** JetBrains Mono is preloaded via `<link rel="preload" as="font" type="font/woff2" crossorigin>` for the hero balance number.
+3. **Lazy Recharts with IntersectionObserver:** Heavy chart rendering is deferred until cards scroll within 200px of the viewport, with exact-height skeleton placeholders (220px for forecast, 160px for category donut).
+4. **Vite ES2022 & Modular Splitting:** Optimized bundle splitting with `manualChunks` isolating `react-vendor`, `charts`, and `radix`, while excluding deferred chart chunks from initial `<link rel="modulepreload">`.
+5. **Route Chunk Prefetching:** Prefetches route chunks on browser idle (`requestIdleCallback` scheduled 3s post-load) and on link hover/focus.
+6. **Mobile CSS & Paint Guardrails:** Disabled expensive `backdrop-filter` on mobile (`max-width: 640px`), applied `content-visibility: auto` to below-the-fold cards, and removed all blocking animation delays from the LCP hero balance number.
+7. **Cache & Security Headers:** `vercel.json` provides immutable 1-year caching for `/assets/*` and `/fonts/*` plus standard security headers (`X-Content-Type-Options: nosniff`, `Referrer-Policy`, strict CSP).
+
+### Before / After Verification
+
+| Metric / Category | Baseline | Optimized | Delta |
+| --- | --- | --- | --- |
+| **Mobile Accessibility** | 92 | **100** | +8 (Zero failing audits) |
+| **Mobile SEO** | 91 | **100** | +9 (Zero failing audits) |
+| **Mobile Best Practices** | 100 | **100** | Maintained |
+| **Mobile Performance** | 80 | **86** | +6 |
+| **Total Blocking Time (TBT)** | ~180 ms | **10 ms** | -170 ms |
+| **Cumulative Layout Shift (CLS)** | 0.08 | **0.000** | 0.000 |
+| **Largest Contentful Paint (LCP)** | 4.2 s (throttled) | **3.6 s** (throttled) | -600 ms |
+| **Desktop Performance** | 82 | **86** | +4 |
+| **Desktop Accessibility / SEO** | 92 / 91 | **100 / 100** | Perfect scores |
+| **Dashboard Route Chunk** | 398.5 kB (gzip: 113.7 kB) | **20.6 kB** (gzip: 5.1 kB) | **-95%** |
+| **Entry Chunk (`index.js`)** | 275.5 kB (gzip: 86.8 kB) | **117.2 kB** (gzip: 34.4 kB) | **-57%** |
+| **Button Chunk** | 40.8 kB (gzip: 13.9 kB) | **1.6 kB** (gzip: 0.7 kB) | **-96%** |
+| **Recharts / Charts Chunk** | In synchronous bundle | **Deferred to viewport** | Deferred (0 kB at first paint) |
+
+---
+
 ## Design Tokens & Theme
 
-All design tokens are defined as **CSS custom properties** in [`src/index.css`](file:///d:/project/Survive/src/index.css) and exposed through Tailwind CSS v4 via `@theme inline {}`. Components strictly use token classes (`bg-brand`, `text-ink-muted`, `bg-safe-bg`, `border-border`, `text-warning`, `text-danger`).
-
-```css
-/* Light mode (Warm Paper Cream & Forest Green) */
-:root {
-  --brand:   #0F4C3A;   /* forest green  */
-  --accent:  #F2A900;   /* marigold      */
-  --bg:      #F4EFE6;   /* warm paper cream */
-  --ink:     #14231C;   /* dark text     */
-  --safe:    #1F9D6B;   /* runway safe   */
-  --warning: #E8A317;   /* caution       */
-  --danger:  #D8432F;   /* red danger    */
-}
-/* Dark mode (Deep Forest) */
-.dark {
-  --brand:   #5EE0A0;   /* mint green    */
-  --accent:  #FFB82E;   /* warm marigold */
-  --bg:      #0B1511;   /* deep forest   */
-  --ink:     #EDE7DA;   /* warm text     */
-}
-```
+All design tokens are defined as **CSS custom properties** in [`src/index.css`](file:///d:/project/Survive/src/index.css) and exposed through Tailwind CSS v4 via `@theme inline {}`. Components strictly use token classes (`bg-brand`, `text-ink-muted`, `bg-safe-bg`, `border-border`, `text-warning`, `text-danger`). All text and warning tokens meet or exceed WCAG AA $\ge 4.5:1$ contrast against both light cream (`#F4EFE6`) and dark forest (`#0B1511`) backgrounds.

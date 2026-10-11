@@ -27,15 +27,30 @@ export function prefetchRoute(path: string): void {
 export function initIdlePrefetch(): void {
   if (typeof window === 'undefined') return
 
-  const prefetchRemaining = () => {
-    Object.keys(routeLoaders).forEach((path) => {
-      prefetchRoute(path)
-    })
+  const startPrefetch = () => {
+    const queue = Object.keys(routeLoaders).filter((path) => path !== '/')
+    let idx = 0
+
+    const prefetchNext = () => {
+      if (idx >= queue.length) return
+      prefetchRoute(queue[idx++])
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(prefetchNext, { timeout: 2000 })
+      } else {
+        setTimeout(prefetchNext, 1200)
+      }
+    }
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(prefetchNext, { timeout: 2000 })
+    } else {
+      setTimeout(prefetchNext, 1200)
+    }
   }
 
-  if ('requestIdleCallback' in window) {
-    window.requestIdleCallback(prefetchRemaining, { timeout: 4000 })
+  if (document.readyState === 'complete') {
+    setTimeout(startPrefetch, 3000)
   } else {
-    setTimeout(prefetchRemaining, 2500)
+    window.addEventListener('load', () => setTimeout(startPrefetch, 3000), { once: true })
   }
 }
