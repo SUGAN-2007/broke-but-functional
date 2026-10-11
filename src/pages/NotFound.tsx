@@ -56,11 +56,9 @@ export default function NotFound() {
             Go home
           </Link>
         </Button>
-        <Button asChild variant="outline">
-          <Link to={-1 as any}>
-            <ArrowLeft size={16} aria-hidden="true" />
-            Go back
-          </Link>
+        <Button variant="outline" onClick={() => window.history.back()}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          Go back
         </Button>
       </div>
     </motion.div>

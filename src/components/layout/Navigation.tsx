@@ -22,7 +22,7 @@ interface NavItem {
   label: string
 }
 
-export const navItems: NavItem[] = [
+const navItems: NavItem[] = [
   { to: '/',            icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/calendar',    icon: Calendar,        label: 'Calendar' },
   { to: '/simulate',    icon: GitBranch,       label: 'Simulator' },

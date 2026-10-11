@@ -76,11 +76,11 @@ export function Header() {
             <button
               type="button"
               onClick={() => setDayOffset((prev) => (prev >= 22 ? 0 : prev + 1))}
-              className="ml-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-[6px] text-[10px] font-medium bg-bg hover:bg-border text-ink-muted hover:text-ink transition-colors cursor-pointer"
-              title="Next day simulation step (visual only)"
-              aria-label="Advance simulated day"
+              className="ml-1.5 flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-semibold bg-bg hover:bg-border text-ink-muted hover:text-ink transition-colors cursor-pointer"
+              title="Simulate advancing to the next day"
+              aria-label="Next day"
             >
-              <span>+1d</span>
+              <span>Next day</span>
               <ChevronRight size={10} aria-hidden="true" />
             </button>
           </div>
