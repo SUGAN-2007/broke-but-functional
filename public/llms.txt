@@ -3,10 +3,10 @@
 > Gen Z Survival Budget & Personal Finance Tracker
 
 ## Overview
-Broke But Functional is a fast, offline-first personal finance tracking web application designed for students and young adults navigating monthly cash flows, committed bills, and discretionary spending.
+Broke But Functional is a fast personal finance tracking web application designed for students and young adults navigating monthly cash flows, committed bills, and discretionary spending. All data is stored locally in the browser (via IndexedDB), and bank and UPI connectors are simulated for demonstration.
 
 ## Core Features
-- Dashboard: Real-time safe-to-spend calculation, daily burn rate, and survival days left.
+- Dashboard: Safe-to-spend calculation, daily burn rate, and survival days left.
 - Calendar: 30-day Mon-Sun timeline showing high-spend events, income, and bills.
 - Commitments: Categorized bill tracker with due dates and payment status.
 - Simulator: Scenario sandbox to model unexpected expenses and adjustments.

@@ -9,7 +9,7 @@ import {
   CalendarDays,
   X,
 } from 'lucide-react'
-import { heroData } from '@/data/mock'
+import { heroData } from '@/data/selectors'
 import { Badge } from '@/components/ui/badge'
 import { getDateForDay } from '@/lib/utils'
 import { getStoredTheme, saveStoredTheme } from '@/lib/storage'
