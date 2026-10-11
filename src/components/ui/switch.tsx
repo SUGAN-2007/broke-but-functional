@@ -13,6 +13,7 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={props['aria-label'] || 'Toggle setting'}
         disabled={disabled}
         ref={ref}
         onClick={() => !disabled && onCheckedChange?.(!checked)}

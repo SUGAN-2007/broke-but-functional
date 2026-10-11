@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
 import { events as initialEvents, resolvedEventsHistory } from '@/data'
 import type { FinanceEvent, EventChoice, ResolvedEventHistory } from '@/types/finance'
-import { fadeUp } from '@/lib/motion'
 import { EventCard } from '@/components/events/EventCard'
 import { ResolvedEventsHistoryCard } from '@/components/events/ResolvedEventsHistoryCard'
 
@@ -30,14 +28,9 @@ export default function Events() {
   }
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <motion.div variants={fadeUp}>
+      <div>
         <div className="flex items-center gap-2.5 mb-1">
           <Zap size={24} className="text-accent" aria-hidden="true" />
           <h1 className="font-display font-[800] text-2xl sm:text-3xl text-ink tracking-tight">
@@ -47,24 +40,21 @@ export default function Events() {
         <p className="font-body text-xs sm:text-sm text-ink-muted">
           Random life shocks that test your budget resilience. Every decision triggers an immediate ripple across your Oct 28 (Day 26) runway.
         </p>
-      </motion.div>
+      </div>
 
       {/* Active Incidents List */}
-      <motion.div
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
-        className="flex flex-col gap-4"
-      >
+      <div className="flex flex-col gap-4">
         {activeEvents.map((event) => (
-          <motion.div key={event.id} variants={fadeUp}>
+          <div key={event.id}>
             <EventCard event={event} onResolve={handleResolveEvent} />
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
 
       {/* Resolved Incidents Log */}
-      <motion.div variants={fadeUp}>
+      <div>
         <ResolvedEventsHistoryCard historyList={historyList} />
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }

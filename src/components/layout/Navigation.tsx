@@ -15,6 +15,7 @@ import {
   Plus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { prefetchRoute } from '@/lib/prefetch'
 
 interface NavItem {
   to: string
@@ -70,6 +71,8 @@ export function SidebarRail() {
             <div key={item.to} className="relative group w-full flex justify-center">
               <NavLink
                 to={item.to}
+                onMouseEnter={() => prefetchRoute(item.to)}
+                onFocus={() => prefetchRoute(item.to)}
                 aria-label={item.label}
                 className={cn(
                   'flex items-center justify-center',
@@ -163,6 +166,8 @@ export function BottomNav() {
             <NavLink
               key={item.to}
               to={item.to}
+              onMouseEnter={() => prefetchRoute(item.to)}
+              onFocus={() => prefetchRoute(item.to)}
               className={cn(
                 'flex flex-col items-center justify-center gap-1',
                 'min-w-[48px] min-h-[44px] rounded-[10px] px-2 py-1',
@@ -219,7 +224,7 @@ export function BottomNav() {
               <span className="font-display font-bold text-sm text-ink">More Pages</span>
               <button
                 onClick={() => setMoreSheetOpen(false)}
-                className="p-1 rounded-md text-ink-muted hover:text-ink cursor-pointer"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-ink-muted hover:text-ink cursor-pointer"
                 aria-label="Close sheet"
               >
                 <X size={18} />

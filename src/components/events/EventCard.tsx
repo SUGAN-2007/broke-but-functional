@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import {
   AlertTriangle,
   AlertCircle,
@@ -73,15 +72,8 @@ export function EventCard({ event, onResolve }: EventCardProps) {
       </div>
 
       {/* Choices */}
-      <AnimatePresence mode="wait">
-        {!isResolved ? (
-          <motion.div
-            key="choices"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col sm:flex-row gap-3 pt-1"
-          >
+      {!isResolved ? (
+          <div className="flex flex-col sm:flex-row gap-3 pt-1 animate-in fade-in-50 duration-200">
             {event.choices.map((choice) => {
               const selected = chosen?.tag === choice.tag
               return (
@@ -133,13 +125,11 @@ export function EventCard({ event, onResolve }: EventCardProps) {
                 </button>
               )
             })}
-          </motion.div>
+          </div>
         ) : (
-          <motion.div
+          <div
             key="resolved"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="rounded-[12px] bg-safe-bg border border-safe/30 p-3.5 flex items-center justify-between gap-3 text-xs"
+            className="rounded-[12px] bg-safe-bg border border-safe/30 p-3.5 flex items-center justify-between gap-3 text-xs animate-in fade-in-50 duration-200"
           >
             <div className="flex items-center gap-2 text-safe font-semibold">
               <CheckCircle2 size={16} />
@@ -148,9 +138,8 @@ export function EventCard({ event, onResolve }: EventCardProps) {
             <span className="font-mono font-bold text-safe">
               {chosen?.impact === 0 ? 'Cash intact' : formatCurrency(chosen?.impact || 0)}
             </span>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
 
       {/* Confirmation bar */}
       {!isResolved && (

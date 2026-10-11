@@ -67,6 +67,7 @@ export function PipelineCard({
             <Switch
               checked={conn.autoCategorise}
               onCheckedChange={() => onToggleAutoCat(conn.id)}
+              aria-label={`Auto-categorise transactions for ${conn.name}`}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -74,6 +75,7 @@ export function PipelineCard({
             <Switch
               checked={conn.autoAddBills}
               onCheckedChange={() => onToggleAutoBills(conn.id)}
+              aria-label={`Auto-detect recurring bills for ${conn.name}`}
             />
           </div>
         </div>

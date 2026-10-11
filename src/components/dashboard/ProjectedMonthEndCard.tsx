@@ -19,7 +19,7 @@ export function ProjectedMonthEndCard() {
           <div className="flex items-start gap-2">
             <Lightbulb size={14} className="text-accent shrink-0 mt-0.5" />
             <p className="text-[11px] text-ink font-body leading-relaxed">
-              <span className="font-semibold text-accent-fg">Runway Tip: </span>
+              <span className="font-semibold text-ink">Runway Tip: </span>
               Skipping 2 food deliveries moves Day 26 to Day 28.
             </p>
           </div>

@@ -13,9 +13,9 @@ export function AppearanceCard({ isDark, onToggleDark }: AppearanceCardProps) {
       <div className="flex items-center justify-between mb-1">
         <h2 className="font-display font-[700] text-sm text-ink">Appearance & Mode</h2>
         <div className="flex items-center gap-2">
-          <Sun size={14} className={!isDark ? 'text-accent' : 'text-ink-muted'} />
-          <Switch checked={isDark} onCheckedChange={onToggleDark} />
-          <Moon size={14} className={isDark ? 'text-brand' : 'text-ink-muted'} />
+          <Sun size={14} className={!isDark ? 'text-accent' : 'text-ink-muted'} aria-hidden="true" />
+          <Switch checked={isDark} onCheckedChange={onToggleDark} aria-label="Toggle dark mode" />
+          <Moon size={14} className={isDark ? 'text-brand' : 'text-ink-muted'} aria-hidden="true" />
         </div>
       </div>
       <p className="font-body text-xs text-ink-muted mb-3">

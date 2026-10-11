@@ -1,11 +1,9 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { bills as initialBills } from '@/data'
 import { sumBy } from '@/data/selectors'
 import type { Bill } from '@/types/finance'
-import { fadeUp } from '@/lib/motion'
 import { AddBillDialog } from '@/components/dialogs'
 import { BillsSummaryCards } from '@/components/bills/BillsSummaryCards'
 import { BillListSection } from '@/components/bills/BillListSection'
@@ -31,14 +29,9 @@ export default function Commitments() {
   const later = unpaidBills.filter((b) => b.dueInDays > 7)
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       {/* Header with Add Bill CTA */}
-      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display font-[800] text-2xl sm:text-3xl text-ink tracking-tight">
             Committed Bills & Dues
@@ -54,10 +47,10 @@ export default function Commitments() {
         >
           <Plus size={14} /> Add Bill
         </Button>
-      </motion.div>
+      </div>
 
       {/* Summary Cards */}
-      <motion.div variants={fadeUp}>
+      <div>
         <BillsSummaryCards
           totalCommitted={totalCommitted}
           totalUnpaid={totalUnpaid}
@@ -67,10 +60,10 @@ export default function Commitments() {
           paidCount={paidBills.length}
           paidBills={paidBills}
         />
-      </motion.div>
+      </div>
 
       {/* Grouped lists */}
-      <motion.div variants={fadeUp}>
+      <div>
         <BillListSection
           urgent={urgent}
           soon={soon}
@@ -78,9 +71,9 @@ export default function Commitments() {
           paidBills={paidBills}
           onMarkPaid={handleMarkPaid}
         />
-      </motion.div>
+      </div>
 
       <AddBillDialog open={addBillOpen} onOpenChange={setAddBillOpen} />
-    </motion.div>
+    </div>
   )
 }

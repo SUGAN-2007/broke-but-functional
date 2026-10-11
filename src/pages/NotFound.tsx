@@ -1,15 +1,11 @@
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import { Home, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function NotFound() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="flex flex-col items-center justify-center min-h-[60dvh] text-center gap-6 py-20"
+    <div
+      className="flex flex-col items-center justify-center min-h-[60dvh] text-center gap-6 py-20 animate-in fade-in-50 duration-200"
     >
       {/* Receipt-style 404 */}
       <div className="w-full max-w-[280px] bg-surface-raised border border-border rounded-[20px] p-6 shadow-[var(--shadow-card)]">
@@ -61,6 +57,6 @@ export default function NotFound() {
           Go back
         </Button>
       </div>
-    </motion.div>
+    </div>
   )
 }

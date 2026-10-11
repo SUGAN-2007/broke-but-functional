@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { fadeUp } from '@/lib/motion'
 import { Badge } from '@/components/ui/badge'
 import { calendarDays, heroData, type CalendarDay } from '@/data/selectors'
 import { CalendarSummaryCards } from '@/components/calendar/CalendarSummaryCards'
@@ -31,14 +29,9 @@ export default function CalendarPage() {
   const expensiveLimit = heroData.dailyAllowance * mult
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <motion.div variants={fadeUp}>
+      <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="font-display font-[800] text-2xl sm:text-3xl text-ink tracking-tight">
@@ -52,25 +45,25 @@ export default function CalendarPage() {
             Daily Allowance: ₹{heroData.dailyAllowance}/day
           </Badge>
         </div>
-      </motion.div>
+      </div>
 
       {/* Month Summary Strip (Discretionary vs Fixed Exclusions) */}
-      <motion.div variants={fadeUp}>
+      <div>
         <CalendarSummaryCards dayMultiplier={dayMultiplier} />
-      </motion.div>
+      </div>
 
       {/* Configuration & Threshold Definition Bar */}
-      <motion.div variants={fadeUp}>
+      <div>
         <CalendarControlsBar
           purchaseThreshold={purchaseThreshold}
           onPurchaseThresholdChange={setPurchaseThreshold}
           dayMultiplier={dayMultiplier}
           onDayMultiplierChange={setDayMultiplier}
         />
-      </motion.div>
+      </div>
 
       {/* Main Grid: Heatmap + Selected Day Details */}
-      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Mon-Sun Grid (8 cols) */}
         <div className="lg:col-span-8">
           <CalendarGrid
@@ -91,7 +84,7 @@ export default function CalendarPage() {
             purchaseThreshold={parseFloat(purchaseThreshold) || 500}
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Add Expense for Selected Day Dialog */}
       <AddExpenseDialog
@@ -99,6 +92,6 @@ export default function CalendarPage() {
         onOpenChange={setAddExpenseOpen}
         defaultDate={dialogDate}
       />
-    </motion.div>
+    </div>
   )
 }

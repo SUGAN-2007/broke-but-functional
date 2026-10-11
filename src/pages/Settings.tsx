@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { fadeUp } from '@/lib/motion'
+import { useState, useEffect, useCallback } from 'react'
 import { Settings as SettingsIcon, RotateCcw, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { heroData } from '@/data'
@@ -9,6 +7,15 @@ import { ChallengeParamsCard } from '@/components/settings/ChallengeParamsCard'
 import { AlertSensitivityCard } from '@/components/settings/AlertSensitivityCard'
 import { AppearanceCard } from '@/components/settings/AppearanceCard'
 import { DataBackupCard } from '@/components/settings/DataBackupCard'
+import {
+  getStoredSettings,
+  saveStoredSettings,
+  getStoredTheme,
+  saveStoredTheme,
+  getStoredFinanceState,
+  resetAllStorage,
+} from '@/lib/storage'
+import { CURRENT_SCHEMA_VERSION } from '@/types/schemas'
 
 export default function SettingsPage() {
   const [budget, setBudget] = useState('10000')
@@ -25,41 +32,123 @@ export default function SettingsPage() {
     return false
   })
 
+  // Hydrate from IndexedDB after mount without blocking first render
   useEffect(() => {
-    const root = document.documentElement
-    if (isDark) root.classList.add('dark')
-    else root.classList.remove('dark')
-  }, [isDark])
+    let mounted = true
+
+    getStoredSettings().then((stored) => {
+      if (!mounted) return
+      setBudget(String(stored.budget))
+      setStartDate(stored.startDate)
+      setPurchaseThreshold(String(stored.purchaseThreshold))
+      setDayMultiplier(stored.dayMultiplier)
+    })
+
+    getStoredTheme().then((theme) => {
+      if (!mounted) return
+      if (theme === 'dark') {
+        setIsDark(true)
+        document.documentElement.classList.add('dark')
+      } else if (theme === 'light') {
+        setIsDark(false)
+        document.documentElement.classList.remove('dark')
+      }
+    })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const handleToggleDark = useCallback((val: boolean | ((prev: boolean) => boolean)) => {
+    setIsDark((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val
+      if (next) {
+        document.documentElement.classList.add('dark')
+        saveStoredTheme('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+        saveStoredTheme('light')
+      }
+      return next
+    })
+  }, [])
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
+    saveStoredSettings({
+      budget: Number(budget) || 10000,
+      startDate,
+      purchaseThreshold: Number(purchaseThreshold) || 500,
+      dayMultiplier,
+    })
     setSavedSuccess(true)
     setTimeout(() => setSavedSuccess(false), 2500)
   }
 
-  const handleExportJson = () => {
-    const data = {
-      budget: Number(budget),
-      startDate,
-      purchaseThreshold: Number(purchaseThreshold),
-      dayMultiplier,
-      currentBalance: heroData.balance,
+  const handleExportJson = async () => {
+    const financeState = await getStoredFinanceState()
+    const currentTheme = isDark ? 'dark' : 'light'
+
+    const payload = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       timestamp: new Date().toISOString(),
+      currentBalance: heroData.balance,
+      settings: {
+        budget: Number(budget) || 10000,
+        startDate,
+        purchaseThreshold: Number(purchaseThreshold) || 500,
+        dayMultiplier,
+      },
+      theme: currentTheme as 'light' | 'dark',
+      financeState,
     }
-    navigator.clipboard?.writeText(JSON.stringify(data, null, 2))
+
+    const jsonStr = JSON.stringify(payload, null, 2)
+
+    // Copy to clipboard
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(jsonStr).catch(() => {})
+    }
+
+    // Trigger download
+    const blob = new Blob([jsonStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `broke-but-functional-backup-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
     setExportCopied(true)
     setTimeout(() => setExportCopied(false), 2500)
   }
 
+  const handleImportSuccess = () => {
+    // Reload state from storage
+    getStoredSettings().then((stored) => {
+      setBudget(String(stored.budget))
+      setStartDate(stored.startDate)
+      setPurchaseThreshold(String(stored.purchaseThreshold))
+      setDayMultiplier(stored.dayMultiplier)
+    })
+    getStoredTheme().then((theme) => {
+      if (theme === 'dark') {
+        setIsDark(true)
+        document.documentElement.classList.add('dark')
+      } else {
+        setIsDark(false)
+        document.documentElement.classList.remove('dark')
+      }
+    })
+  }
+
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <motion.div variants={fadeUp}>
+      <div>
         <div className="flex items-center gap-2.5 mb-1">
           <SettingsIcon size={24} className="text-brand" aria-hidden="true" />
           <h1 className="font-display font-[800] text-2xl sm:text-3xl text-ink tracking-tight">
@@ -69,19 +158,19 @@ export default function SettingsPage() {
         <p className="font-body text-xs sm:text-sm text-ink-muted">
           Adjust starting parameters, sensitivity thresholds, active theme, and state exports.
         </p>
-      </motion.div>
+      </div>
 
       <form onSubmit={handleSave} className="flex flex-col gap-5">
-        <motion.div variants={fadeUp}>
+        <div>
           <ChallengeParamsCard
             budget={budget}
             onBudgetChange={setBudget}
             startDate={startDate}
             onStartDateChange={setStartDate}
           />
-        </motion.div>
+        </div>
 
-        <motion.div variants={fadeUp}>
+        <div>
           <AlertSensitivityCard
             purchaseThreshold={purchaseThreshold}
             onPurchaseThresholdChange={setPurchaseThreshold}
@@ -89,18 +178,22 @@ export default function SettingsPage() {
             onDayMultiplierChange={setDayMultiplier}
             dailyAllowance={heroData.dailyAllowance}
           />
-        </motion.div>
+        </div>
 
-        <motion.div variants={fadeUp}>
-          <AppearanceCard isDark={isDark} onToggleDark={setIsDark} />
-        </motion.div>
+        <div>
+          <AppearanceCard isDark={isDark} onToggleDark={handleToggleDark} />
+        </div>
 
-        <motion.div variants={fadeUp}>
-          <DataBackupCard exportCopied={exportCopied} onExportJson={handleExportJson} />
-        </motion.div>
+        <div>
+          <DataBackupCard
+            exportCopied={exportCopied}
+            onExportJson={handleExportJson}
+            onImportSuccess={handleImportSuccess}
+          />
+        </div>
 
         {/* Save & Reset Actions Bar */}
-        <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           <div className="flex items-center gap-2">
             <Button type="submit" variant="primary" className="text-xs font-semibold">
               Save Settings
@@ -120,20 +213,21 @@ export default function SettingsPage() {
           >
             <RotateCcw size={13} /> Reset 30-Day Month
           </Button>
-        </motion.div>
+        </div>
       </form>
 
       {/* Confirm Reset Dialog */}
       <ConfirmResetDialog
         open={resetDialogOpen}
         onOpenChange={setResetDialogOpen}
-        onConfirm={() => {
+        onConfirm={async () => {
+          await resetAllStorage()
           setBudget('10000')
           setStartDate('2026-10-03')
           setPurchaseThreshold('500')
           setDayMultiplier('1.5')
         }}
       />
-    </motion.div>
+    </div>
   )
 }

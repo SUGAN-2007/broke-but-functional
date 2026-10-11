@@ -12,6 +12,7 @@ import {
 import { heroData } from '@/data/mock'
 import { Badge } from '@/components/ui/badge'
 import { getDateForDay } from '@/lib/utils'
+import { getStoredTheme, saveStoredTheme } from '@/lib/storage'
 
 export function Header() {
   const [isDark, setIsDark] = useState(() => {
@@ -23,14 +24,35 @@ export function Header() {
   const [showAlerts, setShowAlerts] = useState(false)
   const [dayOffset, setDayOffset] = useState(0)
 
+  // Read saved theme override from IndexedDB after mount
   useEffect(() => {
-    const root = document.documentElement
-    if (isDark) {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
+    let mounted = true
+    getStoredTheme().then((theme) => {
+      if (!mounted) return
+      if (theme === 'dark') {
+        setIsDark(true)
+        document.documentElement.classList.add('dark')
+      } else if (theme === 'light') {
+        setIsDark(false)
+        document.documentElement.classList.remove('dark')
+      }
+    })
+    return () => {
+      mounted = false
     }
-  }, [isDark])
+  }, [])
+
+  const handleThemeToggle = () => {
+    const nextDark = !isDark
+    setIsDark(nextDark)
+    if (nextDark) {
+      document.documentElement.classList.add('dark')
+      saveStoredTheme('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      saveStoredTheme('light')
+    }
+  }
 
   const currentDay = Math.min(heroData.totalDays, heroData.day + dayOffset)
 
@@ -98,12 +120,12 @@ export function Header() {
             <button
               type="button"
               onClick={() => setShowAlerts((v) => !v)}
-              className="relative p-2 rounded-[10px] text-ink-muted hover:text-ink hover:bg-surface-raised transition-colors focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none cursor-pointer"
+              className="relative min-w-[44px] min-h-[44px] flex items-center justify-center rounded-[10px] text-ink-muted hover:text-ink hover:bg-surface-raised transition-colors focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none cursor-pointer"
               aria-label="Notifications & active events"
               aria-expanded={showAlerts}
             >
               <Bell size={18} aria-hidden="true" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger ring-2 ring-surface" />
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-danger ring-2 ring-surface" />
             </button>
 
             {/* Alerts Dropdown */}
@@ -120,10 +142,10 @@ export function Header() {
                   </div>
                   <button
                     onClick={() => setShowAlerts(false)}
-                    className="p-1 text-ink-muted hover:text-ink rounded-md"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center text-ink-muted hover:text-ink rounded-md"
                     aria-label="Close alerts"
                   >
-                    <X size={14} />
+                    <X size={16} />
                   </button>
                 </div>
 
@@ -171,8 +193,8 @@ export function Header() {
           {/* Dark/Light mode toggle */}
           <button
             type="button"
-            onClick={() => setIsDark((d) => !d)}
-            className="p-2 rounded-[10px] text-ink-muted hover:text-ink hover:bg-surface-raised transition-colors focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none cursor-pointer"
+            onClick={handleThemeToggle}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-[10px] text-ink-muted hover:text-ink hover:bg-surface-raised transition-colors focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none cursor-pointer"
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {isDark ? <Sun size={18} className="text-accent" /> : <Moon size={18} />}

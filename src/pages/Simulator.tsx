@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { fadeUp } from '@/lib/motion'
 import { Calculator, GitCompare } from 'lucide-react'
 import { heroData } from '@/data/selectors'
 import { SimulatorFormCard } from '@/components/simulator/SimulatorFormCard'
@@ -42,14 +40,9 @@ export default function Simulator() {
   }
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Calculator size={22} className="text-brand" aria-hidden="true" />
@@ -76,10 +69,10 @@ export default function Simulator() {
           <GitCompare size={14} />
           <span>{compareMode ? 'Comparing 2 Scenarios' : 'Compare Two Decisions'}</span>
         </button>
-      </motion.div>
+      </div>
 
       {/* Main Grid: Form + Simulator Output */}
-      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left: Input Form (5 cols) */}
         <div className="lg:col-span-5">
           <SimulatorFormCard
@@ -113,12 +106,12 @@ export default function Simulator() {
             onCancel={handleReset}
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Explanation Rules */}
-      <motion.div variants={fadeUp} className="mt-2">
+      <div className="mt-2">
         <SimulatorEngineExplanation />
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }

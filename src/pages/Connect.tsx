@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { fadeUp } from '@/lib/motion'
 import { CheckCircle2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -78,13 +76,8 @@ export default function Connect() {
   }
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      className="flex flex-col gap-6"
-    >
-      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display font-[800] text-2xl sm:text-3xl text-ink tracking-tight">
             Auto-Sync & Financial Connectors
@@ -98,11 +91,11 @@ export default function Connect() {
             <CheckCircle2 size={12} className="mr-1" /> Synced 3 items
           </Badge>
         )}
-      </motion.div>
+      </div>
 
-      <motion.div variants={fadeUp}><ConnectNoticeBanner /></motion.div>
+      <div><ConnectNoticeBanner /></div>
 
-      <motion.div variants={fadeUp}>
+      <div>
         <ActivePipelinesSection
           connected={connected}
           syncingId={syncingId}
@@ -112,32 +105,32 @@ export default function Connect() {
           onToggleAutoCat={handleToggleAutoCat}
           onToggleAutoBills={handleToggleAutoBills}
         />
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <motion.div variants={fadeUp} className="lg:col-span-7">
+        <div className="lg:col-span-7">
           <AvailableSourcesCard
             available={available}
             onStartConnect={(conn) => setSelectedConnectorToConnect(conn)}
           />
-        </motion.div>
-        <motion.div variants={fadeUp} className="lg:col-span-5 flex flex-col gap-5">
+        </div>
+        <div className="lg:col-span-5 flex flex-col gap-5">
           <ReviewInboxCard
             inboxList={inboxList}
             onApprove={(id) => setInboxList((p) => p.filter((x) => x.id !== id))}
             onReject={(id) => setInboxList((p) => p.filter((x) => x.id !== id))}
           />
           <SyncActivityLogCard logs={syncActivityLogs} />
-        </motion.div>
+        </div>
       </div>
 
-      <motion.div variants={fadeUp}><PrivacyGuaranteeBar /></motion.div>
+      <div><PrivacyGuaranteeBar /></div>
 
       <ConnectStepperDialog
         connector={selectedConnectorToConnect}
         onClose={() => setSelectedConnectorToConnect(null)}
         onFinish={handleFinishConnect}
       />
-    </motion.div>
+    </div>
   )
 }

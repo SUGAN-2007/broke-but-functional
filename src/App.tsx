@@ -1,8 +1,9 @@
-import { Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Suspense, lazy, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { DashboardSkeleton } from '@/components/ui/skeleton'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
+import { initIdlePrefetch } from '@/lib/prefetch'
 
 // Lazy-loaded pages
 const Dashboard   = lazy(() => import('@/pages/Dashboard'))
@@ -34,9 +35,37 @@ function RouteWrapper({ children }: { children: React.ReactNode }) {
   )
 }
 
+function RouteTracker() {
+  const location = useLocation()
+
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      '/': 'Dashboard — Broke But Functional',
+      '/calendar': 'Survival Calendar (30 Days) — Broke But Functional',
+      '/simulate': 'What-If Cashflow Simulator — Broke But Functional',
+      '/commitments': 'Committed Bills & Subscriptions — Broke But Functional',
+      '/goals': 'Savings Goals — Broke But Functional',
+      '/connect': 'Simulated Bank & UPI Connectors — Broke But Functional',
+      '/events': 'Surprise Financial Events — Broke But Functional',
+      '/summary': '30-Day Retrospective & Summary — Broke But Functional',
+      '/settings': 'Settings & Challenge Controls — Broke But Functional',
+    }
+
+    const title = titles[location.pathname] || 'Broke But Functional — Survive on ₹10K'
+    document.title = title
+  }, [location.pathname])
+
+  useEffect(() => {
+    initIdlePrefetch()
+  }, [])
+
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <RouteTracker />
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<RouteWrapper><Dashboard /></RouteWrapper>} />
@@ -54,3 +83,4 @@ export default function App() {
     </BrowserRouter>
   )
 }
+

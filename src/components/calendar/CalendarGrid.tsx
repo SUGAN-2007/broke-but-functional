@@ -101,6 +101,8 @@ export function CalendarGrid({
               key={d.dayNumber}
               type="button"
               onClick={() => onSelectDay(d)}
+              aria-label={`${d.dateStr}, Day ${d.dayNumber}. ${d.isToday ? 'Today. ' : ''}Total outflow: ₹${d.totalSpend}`}
+              aria-pressed={isSelected}
               className={[
                 'h-22 rounded-[12px] p-2 flex flex-col justify-between text-left transition-all border cursor-pointer relative',
                 isSelected ? 'ring-2 ring-brand scale-[1.02] z-10 shadow-sm' : '',

@@ -1,9 +1,47 @@
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { Card } from '@/components/ui/card'
 import { categories, totalSpent } from '@/data/selectors'
 import { formatCurrency } from '@/lib/format'
 
+const LazyCategoryPieChart = lazy(() => import('./CategoryPieChart'))
+
+function CategoryPieChartSkeleton() {
+  return (
+    <div
+      role="status"
+      className="h-[160px] flex items-center justify-center"
+      aria-label="Loading category donut chart"
+    >
+      <div className="w-[136px] h-[136px] rounded-full border-[18px] border-border/40 animate-pulse flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-border/20" />
+      </div>
+    </div>
+  )
+}
+
 export function CategorySpendCard() {
+  const [inView, setInView] = useState(() => typeof window === 'undefined' || !('IntersectionObserver' in window))
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (inView) return
+    const el = containerRef.current
+    if (!el || !('IntersectionObserver' in window)) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setInView(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' }
+    )
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [inView])
+
   return (
     <Card hover className="h-full flex flex-col p-5">
       <div className="flex items-center justify-between mb-2">
@@ -13,32 +51,14 @@ export function CategorySpendCard() {
         <span className="font-mono text-xs text-ink-muted">8 Days</span>
       </div>
 
-      <div className="h-[160px] flex items-center justify-center">
-        <ResponsiveContainer width="100%" height={160}>
-          <PieChart>
-            <Pie
-              data={categories}
-              dataKey="spent"
-              nameKey="name"
-              innerRadius={48}
-              outerRadius={68}
-              paddingAngle={3}
-            >
-              {categories.map((cat, i) => (
-                <Cell key={i} fill={cat.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value) => [formatCurrency(Number(value) || 0), 'Spent']}
-              contentStyle={{
-                backgroundColor: 'var(--surface-raised)',
-                borderColor: 'var(--border)',
-                borderRadius: '10px',
-                fontSize: '12px',
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+      <div ref={containerRef} className="h-[160px]">
+        {inView ? (
+          <Suspense fallback={<CategoryPieChartSkeleton />}>
+            <LazyCategoryPieChart />
+          </Suspense>
+        ) : (
+          <CategoryPieChartSkeleton />
+        )}
       </div>
 
       <div className="mt-2 space-y-2 flex-1 justify-center flex flex-col">
@@ -58,3 +78,4 @@ export function CategorySpendCard() {
     </Card>
   )
 }
+

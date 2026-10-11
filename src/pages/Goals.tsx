@@ -1,12 +1,10 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { goals } from '@/data'
 import { sumBy } from '@/data/selectors'
 import { formatCurrency, formatPercent } from '@/lib/format'
 import type { Goal } from '@/types/finance'
-import { fadeUp } from '@/lib/motion'
 import { AddGoalDialog, ContributeDialog } from '@/components/dialogs'
 import { GoalCard } from '@/components/goals/GoalCard'
 import { GoalsSummaryCards } from '@/components/goals/GoalsSummaryCards'
@@ -21,14 +19,9 @@ export default function Goals() {
   const overallProgress = formatPercent(totalSaved, totalTarget)
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display font-[800] text-2xl sm:text-3xl text-ink tracking-tight">
             Savings Goals & Cushions
@@ -44,33 +37,30 @@ export default function Goals() {
         >
           <Plus size={15} /> New Goal
         </Button>
-      </motion.div>
+      </div>
 
       {/* Target Highlights Strip */}
-      <motion.div variants={fadeUp}>
+      <div>
         <GoalsSummaryCards
           totalSaved={totalSaved}
           totalTarget={totalTarget}
           overallProgress={overallProgress}
         />
-      </motion.div>
+      </div>
 
       {/* Goals grid (4 cards) */}
-      <motion.div
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {goals.map((goal) => (
-          <motion.div key={goal.id} variants={fadeUp}>
+          <div key={goal.id}>
             <GoalCard goal={goal} onContribute={(g) => setContributeTarget(g)} />
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
 
       {/* Lower Half: Strategy & Runway Allocation */}
-      <motion.div variants={fadeUp}>
+      <div>
         <GoalsStrategySection />
-      </motion.div>
+      </div>
 
       {/* Dialogs */}
       <AddGoalDialog open={addGoalOpen} onOpenChange={setAddGoalOpen} />
@@ -81,6 +71,6 @@ export default function Goals() {
           goal={contributeTarget}
         />
       )}
-    </motion.div>
+    </div>
   )
 }
